@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -18,6 +19,7 @@ import com.luckycolor.admin.modules.system.user.web.response.SystemUserPageRespo
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -148,5 +150,64 @@ class SystemUserControllerTest {
             .andExpect(jsonPath("$.data").value(true));
 
         Mockito.verify(service).deleteUser(1L);
+    }
+
+    @Test
+    void shouldResetPassword() throws Exception {
+        SystemUserService service = Mockito.mock(SystemUserService.class);
+        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new SystemUserController(service)).build();
+
+        mockMvc.perform(put("/admin/users/1/password")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"newPassword":"new-password"}
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data").value(true));
+
+        Mockito.verify(service).resetPassword(eq(1L), any());
+    }
+
+    @Test
+    void shouldAssignRoles() throws Exception {
+        SystemUserService service = Mockito.mock(SystemUserService.class);
+        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new SystemUserController(service)).build();
+
+        mockMvc.perform(put("/admin/users/1/roles")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"roleCodes":["ROLE_ADMIN","ROLE_EDITOR"]}
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data").value(true));
+
+        Mockito.verify(service).assignRoles(eq(1L), any());
+    }
+
+    @Test
+    void shouldExportUsers() throws Exception {
+        SystemUserService service = Mockito.mock(SystemUserService.class);
+        when(service.exportUsers(any())).thenReturn("username,nickname\nadmin,System Admin\n".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new SystemUserController(service)).build();
+
+        mockMvc.perform(get("/admin/users/export"))
+            .andExpect(status().isOk());
+    }
+
+    @Test
+    void shouldImportUsers() throws Exception {
+        SystemUserService service = Mockito.mock(SystemUserService.class);
+        when(service.importUsers(any())).thenReturn(1);
+        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new SystemUserController(service)).build();
+        MockMultipartFile file = new MockMultipartFile(
+            "file",
+            "users.csv",
+            "text/csv",
+            "username,nickname\nadmin,System Admin\n".getBytes(java.nio.charset.StandardCharsets.UTF_8)
+        );
+
+        mockMvc.perform(multipart("/admin/users/import").file(file))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data").value(1));
     }
 }

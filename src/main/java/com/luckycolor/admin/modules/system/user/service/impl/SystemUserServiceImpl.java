@@ -7,12 +7,18 @@ import com.luckycolor.admin.modules.iam.auth.config.LocalAuthProperties;
 import com.luckycolor.admin.modules.system.user.dataobject.SystemUserDO;
 import com.luckycolor.admin.modules.system.user.mapper.SystemUserMapper;
 import com.luckycolor.admin.modules.system.user.service.SystemUserService;
+import com.luckycolor.admin.modules.system.user.web.request.SystemUserAssignRolesRequest;
 import com.luckycolor.admin.modules.system.user.web.request.SystemUserPageQuery;
+import com.luckycolor.admin.modules.system.user.web.request.SystemUserResetPasswordRequest;
 import com.luckycolor.admin.modules.system.user.web.request.SystemUserSaveRequest;
 import com.luckycolor.admin.modules.system.user.web.request.SystemUserStatusRequest;
 import com.luckycolor.admin.modules.system.user.web.response.SystemUserDetailResponse;
 import com.luckycolor.admin.modules.system.user.web.response.SystemUserExportPreviewResponse;
 import com.luckycolor.admin.modules.system.user.web.response.SystemUserPageResponse;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -22,6 +28,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
 @ConditionalOnBean(SystemUserMapper.class)
@@ -107,6 +114,63 @@ public class SystemUserServiceImpl implements SystemUserService {
         systemUserMapper.deleteById(id);
     }
 
+    @Override
+    public void resetPassword(Long id, SystemUserResetPasswordRequest request) {
+        SystemUserDO user = getRequiredUser(id);
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        systemUserMapper.updateById(user);
+    }
+
+    @Override
+    public void assignRoles(Long id, SystemUserAssignRolesRequest request) {
+        SystemUserDO user = getRequiredUser(id);
+        user.setRoleCodes(joinCodes(request.getRoleCodes()));
+        systemUserMapper.updateById(user);
+    }
+
+    @Override
+    public byte[] exportUsers(SystemUserPageQuery query) {
+        StringBuilder builder = new StringBuilder();
+        builder.append("username,nickname,email,mobile,roleCodes,status").append('\n');
+        selectUsersForExport(query).forEach(user -> {
+            builder.append(csv(user.getUsername())).append(',')
+                .append(csv(user.getNickname())).append(',')
+                .append(csv(user.getEmail())).append(',')
+                .append(csv(user.getMobile())).append(',')
+                .append(csv(user.getRoleCodes())).append(',')
+                .append(user.getStatus() == null ? "" : user.getStatus())
+                .append('\n');
+        });
+        return builder.toString().getBytes(StandardCharsets.UTF_8);
+    }
+
+    @Override
+    public int importUsers(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Import file is required");
+        }
+        try (BufferedReader reader = new BufferedReader(
+            new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8)
+        )) {
+            String header = reader.readLine();
+            if (!StringUtils.hasText(header)) {
+                return 0;
+            }
+            int importedCount = 0;
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (!StringUtils.hasText(line)) {
+                    continue;
+                }
+                upsertImportedUser(splitCsvLine(line));
+                importedCount++;
+            }
+            return importedCount;
+        } catch (IOException exception) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Failed to import users", exception);
+        }
+    }
+
     private LambdaQueryWrapper<SystemUserDO> buildQueryWrapper(SystemUserPageQuery query) {
         LambdaQueryWrapper<SystemUserDO> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.like(StringUtils.hasText(query.getUsername()), SystemUserDO::getUsername, query.getUsername());
@@ -120,6 +184,10 @@ public class SystemUserServiceImpl implements SystemUserService {
         );
         queryWrapper.orderByDesc(SystemUserDO::getCreateTime);
         return queryWrapper;
+    }
+
+    private List<SystemUserDO> selectUsersForExport(SystemUserPageQuery query) {
+        return systemUserMapper.selectList(buildQueryWrapper(query));
     }
 
     private SystemUserDO getRequiredUser(Long id) {
@@ -160,6 +228,45 @@ public class SystemUserServiceImpl implements SystemUserService {
         if (creating) {
             user.setPassword(passwordEncoder.encode(request.getPassword()));
         }
+    }
+
+    private void upsertImportedUser(List<String> columns) {
+        String username = column(columns, 0);
+        if (!StringUtils.hasText(username)) {
+            return;
+        }
+        SystemUserDO existingUser = findByUsername(username);
+        if (existingUser == null) {
+            existingUser = new SystemUserDO();
+            existingUser.setUsername(username);
+            existingUser.setPassword(passwordEncoder.encode(defaultPassword(column(columns, 7))));
+            applyImportedColumns(existingUser, columns);
+            systemUserMapper.insert(existingUser);
+            return;
+        }
+        applyImportedColumns(existingUser, columns);
+        String password = column(columns, 7);
+        if (StringUtils.hasText(password)) {
+            existingUser.setPassword(passwordEncoder.encode(password));
+        }
+        systemUserMapper.updateById(existingUser);
+    }
+
+    private void applyImportedColumns(SystemUserDO user, List<String> columns) {
+        user.setNickname(column(columns, 1));
+        user.setEmail(column(columns, 2));
+        user.setMobile(column(columns, 3));
+        user.setRoleCodes(column(columns, 4));
+        user.setPermissionCodes(column(columns, 5));
+        user.setDataScope(defaultValue(column(columns, 6), "TENANT"));
+        user.setStatus(parseInteger(column(columns, 8), 0));
+        user.setRemark(column(columns, 9));
+    }
+
+    private SystemUserDO findByUsername(String username) {
+        LambdaQueryWrapper<SystemUserDO> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(SystemUserDO::getUsername, username.trim());
+        return systemUserMapper.selectList(queryWrapper).stream().findFirst().orElse(null);
     }
 
     private SystemUserPageResponse toPageResponse(SystemUserDO user) {
@@ -253,5 +360,52 @@ public class SystemUserServiceImpl implements SystemUserService {
 
     private List<String> safeList(List<String> values) {
         return values == null ? List.of() : values;
+    }
+
+    private List<String> splitCsvLine(String line) {
+        java.util.ArrayList<String> columns = new java.util.ArrayList<>();
+        StringBuilder current = new StringBuilder();
+        boolean quoted = false;
+        for (int index = 0; index < line.length(); index++) {
+            char currentChar = line.charAt(index);
+            if (currentChar == '"') {
+                quoted = !quoted;
+                continue;
+            }
+            if (currentChar == ',' && !quoted) {
+                columns.add(current.toString().trim());
+                current.setLength(0);
+                continue;
+            }
+            current.append(currentChar);
+        }
+        columns.add(current.toString().trim());
+        return columns;
+    }
+
+    private String csv(String value) {
+        if (!StringUtils.hasText(value)) {
+            return "";
+        }
+        return "\"" + value.replace("\"", "\"\"") + "\"";
+    }
+
+    private String column(List<String> columns, int index) {
+        return index >= columns.size() ? null : columns.get(index);
+    }
+
+    private Integer parseInteger(String value, Integer defaultValue) {
+        if (!StringUtils.hasText(value)) {
+            return defaultValue;
+        }
+        return Integer.parseInt(value.trim());
+    }
+
+    private String defaultPassword(String password) {
+        return StringUtils.hasText(password) ? password : "ChangeMe123!";
+    }
+
+    private String defaultValue(String value, String defaultValue) {
+        return StringUtils.hasText(value) ? value : defaultValue;
     }
 }

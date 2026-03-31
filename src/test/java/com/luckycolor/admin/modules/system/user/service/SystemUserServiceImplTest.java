@@ -3,7 +3,6 @@ package com.luckycolor.admin.modules.system.user.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -15,7 +14,9 @@ import com.luckycolor.admin.modules.iam.auth.config.LocalAuthProperties;
 import com.luckycolor.admin.modules.system.user.dataobject.SystemUserDO;
 import com.luckycolor.admin.modules.system.user.mapper.SystemUserMapper;
 import com.luckycolor.admin.modules.system.user.service.impl.SystemUserServiceImpl;
+import com.luckycolor.admin.modules.system.user.web.request.SystemUserAssignRolesRequest;
 import com.luckycolor.admin.modules.system.user.web.request.SystemUserPageQuery;
+import com.luckycolor.admin.modules.system.user.web.request.SystemUserResetPasswordRequest;
 import com.luckycolor.admin.modules.system.user.web.request.SystemUserSaveRequest;
 import com.luckycolor.admin.modules.system.user.web.request.SystemUserStatusRequest;
 import com.luckycolor.admin.modules.system.user.web.response.SystemUserDetailResponse;
@@ -24,6 +25,7 @@ import com.luckycolor.admin.modules.system.user.web.response.SystemUserPageRespo
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -125,6 +127,69 @@ class SystemUserServiceImplTest {
         service.deleteUser(1L);
 
         verify(mapper).deleteById(1L);
+    }
+
+    @Test
+    void shouldResetPassword() {
+        SystemUserMapper mapper = Mockito.mock(SystemUserMapper.class);
+        SystemUserDO user = user();
+        when(mapper.selectById(1L)).thenReturn(user);
+        SystemUserService service = new SystemUserServiceImpl(mapper, noScopeBuilder(), localAuthProperties(), passwordEncoder());
+        SystemUserResetPasswordRequest request = new SystemUserResetPasswordRequest();
+        request.setNewPassword("new-password");
+
+        service.resetPassword(1L, request);
+
+        assertThat(user.getPassword()).isEqualTo("$2a$encoded-password");
+        verify(mapper).updateById(user);
+    }
+
+    @Test
+    void shouldAssignRoles() {
+        SystemUserMapper mapper = Mockito.mock(SystemUserMapper.class);
+        SystemUserDO user = user();
+        when(mapper.selectById(1L)).thenReturn(user);
+        SystemUserService service = new SystemUserServiceImpl(mapper, noScopeBuilder(), localAuthProperties(), passwordEncoder());
+        SystemUserAssignRolesRequest request = new SystemUserAssignRolesRequest();
+        request.setRoleCodes(List.of("ROLE_ADMIN", "ROLE_EDITOR"));
+
+        service.assignRoles(1L, request);
+
+        assertThat(user.getRoleCodes()).isEqualTo("ROLE_ADMIN,ROLE_EDITOR");
+        verify(mapper).updateById(user);
+    }
+
+    @Test
+    void shouldExportUsers() {
+        SystemUserMapper mapper = Mockito.mock(SystemUserMapper.class);
+        when(mapper.selectList(any(Wrapper.class))).thenReturn(List.of(user()));
+        SystemUserService service = new SystemUserServiceImpl(mapper, noScopeBuilder(), localAuthProperties(), passwordEncoder());
+
+        byte[] result = service.exportUsers(new SystemUserPageQuery());
+
+        assertThat(new String(result, java.nio.charset.StandardCharsets.UTF_8)).contains("username,nickname,email");
+        assertThat(new String(result, java.nio.charset.StandardCharsets.UTF_8)).contains("admin");
+    }
+
+    @Test
+    void shouldImportUsers() {
+        SystemUserMapper mapper = Mockito.mock(SystemUserMapper.class);
+        when(mapper.selectList(any(Wrapper.class))).thenReturn(List.of());
+        SystemUserService service = new SystemUserServiceImpl(mapper, noScopeBuilder(), localAuthProperties(), passwordEncoder());
+        MockMultipartFile file = new MockMultipartFile(
+            "file",
+            "users.csv",
+            "text/csv",
+            """
+                username,nickname,email,mobile,roleCodes,permissionCodes,dataScope,password,status,remark
+                import-user,Import User,import@example.com,13800000001,ROLE_ADMIN,system:user:query,ALL,import123,0,imported
+                """.getBytes(java.nio.charset.StandardCharsets.UTF_8)
+        );
+
+        int result = service.importUsers(file);
+
+        assertThat(result).isEqualTo(1);
+        verify(mapper).insert(any(SystemUserDO.class));
     }
 
     private SystemUserDO user() {

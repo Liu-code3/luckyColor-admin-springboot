@@ -5,24 +5,33 @@ import com.luckycolor.admin.common.page.PageResult;
 import com.luckycolor.admin.infrastructure.security.authorization.RequirePermission;
 import com.luckycolor.admin.modules.system.user.mapper.SystemUserMapper;
 import com.luckycolor.admin.modules.system.user.service.SystemUserService;
+import com.luckycolor.admin.modules.system.user.web.request.SystemUserAssignRolesRequest;
 import com.luckycolor.admin.modules.system.user.web.request.SystemUserPageQuery;
+import com.luckycolor.admin.modules.system.user.web.request.SystemUserResetPasswordRequest;
 import com.luckycolor.admin.modules.system.user.web.request.SystemUserSaveRequest;
 import com.luckycolor.admin.modules.system.user.web.request.SystemUserStatusRequest;
 import com.luckycolor.admin.modules.system.user.web.response.SystemUserDetailResponse;
 import com.luckycolor.admin.modules.system.user.web.response.SystemUserExportPreviewResponse;
 import com.luckycolor.admin.modules.system.user.web.response.SystemUserPageResponse;
 import jakarta.validation.Valid;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/admin/users")
@@ -85,5 +94,42 @@ public class SystemUserController {
     public ApiResponse<Boolean> delete(@PathVariable Long id) {
         systemUserService.deleteUser(id);
         return ApiResponse.success(true);
+    }
+
+    @PutMapping("/{id}/password")
+    @RequirePermission("system:user:reset-password")
+    public ApiResponse<Boolean> resetPassword(
+        @PathVariable Long id,
+        @Valid @RequestBody SystemUserResetPasswordRequest request
+    ) {
+        systemUserService.resetPassword(id, request);
+        return ApiResponse.success(true);
+    }
+
+    @PutMapping("/{id}/roles")
+    @RequirePermission("system:user:assign-role")
+    public ApiResponse<Boolean> assignRoles(
+        @PathVariable Long id,
+        @Valid @RequestBody SystemUserAssignRolesRequest request
+    ) {
+        systemUserService.assignRoles(id, request);
+        return ApiResponse.success(true);
+    }
+
+    @GetMapping("/export")
+    @RequirePermission("system:user:export")
+    public ResponseEntity<ByteArrayResource> export(SystemUserPageQuery query) {
+        byte[] content = systemUserService.exportUsers(query);
+        return ResponseEntity.ok()
+            .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=system-users.csv")
+            .contentType(new MediaType("text", "csv", StandardCharsets.UTF_8))
+            .contentLength(content.length)
+            .body(new ByteArrayResource(content));
+    }
+
+    @PostMapping(value = "/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @RequirePermission("system:user:import")
+    public ApiResponse<Integer> importUsers(@RequestParam("file") MultipartFile file) {
+        return ApiResponse.success(systemUserService.importUsers(file));
     }
 }
