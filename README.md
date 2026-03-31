@@ -10,6 +10,7 @@ LuckyColor Admin backend rewrite based on Spring Boot.
 - MySQL 8.x
 - Redis 7.x
 - MyBatis-Plus 3.5.x
+- Flyway
 
 ## Current bootstrap
 
@@ -20,6 +21,7 @@ LuckyColor Admin backend rewrite based on Spring Boot.
 - Mapper interfaces should use `@Mapper` explicitly instead of wide-package scanning
 - Shared paging contracts are available via `PageQuery`, `PageResult`, and `BaseMapperX`
 - Tenant resolution now supports `x-tenant-id` header first and `Bearer Token` tenant claim second
+- Flyway baseline script added under `src/main/resources/db/migration`
 - Context path configured as `/api`
 - Swagger UI path configured as `/api/docs`
 - Health check endpoint available at `/api/health`
@@ -28,5 +30,12 @@ LuckyColor Admin backend rewrite based on Spring Boot.
 ## Start
 
 ```powershell
+./mvnw spring-boot:run
+```
+
+Enable Flyway migration when needed:
+
+```powershell
+$env:FLYWAY_ENABLED="true"
 ./mvnw spring-boot:run
 ```
