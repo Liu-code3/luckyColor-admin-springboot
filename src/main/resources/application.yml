@@ -1,0 +1,79 @@
+spring:
+  application:
+    name: luckycolor-admin-springboot
+  profiles:
+    active: local
+  jackson:
+    time-zone: Asia/Shanghai
+    date-format: yyyy-MM-dd HH:mm:ss
+  datasource:
+    url: jdbc:mysql://${DB_HOST:127.0.0.1}:${DB_PORT:3306}/${DB_NAME:luckycolor_admin}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:123456}
+  data:
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: ${REDIS_DATABASE:0}
+      timeout: 3s
+  flyway:
+    enabled: false
+
+mybatis-plus:
+  mapper-locations: classpath*:/mapper/**/*.xml
+  type-aliases-package: com.luckycolor.admin
+  configuration:
+    map-underscore-to-camel-case: true
+    cache-enabled: false
+  global-config:
+    banner: false
+    db-config:
+      id-type: ASSIGN_ID
+
+server:
+  port: ${SERVER_PORT:3002}
+  servlet:
+    context-path: /api
+
+springdoc:
+  swagger-ui:
+    path: /docs
+  api-docs:
+    path: /v3/api-docs
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+app:
+  security:
+    jwt:
+      secret: ${JWT_SECRET:replace-with-a-strong-secret}
+      expires-in: ${JWT_EXPIRES_IN:2h}
+  tenancy:
+    enabled: ${TENANT_ENABLED:true}
+    header: ${TENANT_HEADER:x-tenant-id}
+    domain-suffix: ${TENANT_DOMAIN_SUFFIX:}
+    default-tenant-id: ${DEFAULT_TENANT_ID:}
+    ignore-paths:
+      - /health
+      - /api/health
+      - /docs
+      - /api/docs
+      - /swagger-ui
+      - /v3/api-docs
+      - /api/v3/api-docs
+      - /actuator
+      - /api/actuator
+    ignore-tables:
+      - flyway_schema_history
+      - sys_tenant
+      - sys_tenant_package
+      - sys_tenant_audit_log
+  login-captcha:
+    enabled: ${LOGIN_CAPTCHA_ENABLED:true}
+  storage:
+    root-path: ${STORAGE_ROOT_PATH:D:/zl/storage}
