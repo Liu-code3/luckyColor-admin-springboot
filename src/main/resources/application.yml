@@ -63,6 +63,8 @@ app:
     domain-suffix: ${TENANT_DOMAIN_SUFFIX:}
     default-tenant-id: ${DEFAULT_TENANT_ID:}
     ignore-paths:
+      - /auth/captcha
+      - /api/auth/captcha
       - /health
       - /api/health
       - /docs
@@ -81,7 +83,7 @@ app:
     bootstrap:
       templates:
         - code: default
-          name: 默认租户模板
+          name: Default Tenant Template
           role-codes:
             - tenant_admin
             - tenant_member
@@ -90,10 +92,14 @@ app:
             - system:user
             - system:role
           admin-username: admin
-          admin-nickname: 租户管理员
+          admin-nickname: Tenant Admin
           status: 0
-          remark: 内置租户初始化模板
+          remark: Built-in tenant bootstrap template
   login-captcha:
     enabled: ${LOGIN_CAPTCHA_ENABLED:true}
+    expire-in: ${LOGIN_CAPTCHA_EXPIRE_IN:2m}
+    width: ${LOGIN_CAPTCHA_WIDTH:120}
+    height: ${LOGIN_CAPTCHA_HEIGHT:42}
+    code-length: ${LOGIN_CAPTCHA_CODE_LENGTH:4}
   storage:
     root-path: ${STORAGE_ROOT_PATH:D:/zl/storage}

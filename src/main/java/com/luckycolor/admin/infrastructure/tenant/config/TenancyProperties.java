@@ -22,6 +22,8 @@ public class TenancyProperties {
     private String defaultTenantId;
 
     private List<String> ignorePaths = new ArrayList<>(List.of(
+        "/auth/captcha",
+        "/api/auth/captcha",
         "/health",
         "/api/health",
         "/docs",
