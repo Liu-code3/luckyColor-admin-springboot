@@ -1,5 +1,7 @@
 package com.luckycolor.admin.infrastructure.tenant.web;
 
+import com.luckycolor.admin.infrastructure.security.jwt.JwtAccessTokenClaims;
+import com.luckycolor.admin.infrastructure.security.jwt.JwtTokenService;
 import com.luckycolor.admin.infrastructure.tenant.config.TenancyProperties;
 import com.luckycolor.admin.infrastructure.tenant.core.TenantContextHolder;
 import jakarta.servlet.FilterChain;
@@ -21,6 +23,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 public class TenantContextFilter extends OncePerRequestFilter {
 
     private final TenancyProperties tenancyProperties;
+    private final JwtTokenService jwtTokenService;
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
@@ -51,6 +54,9 @@ public class TenantContextFilter extends OncePerRequestFilter {
     private Optional<Long> resolveTenantId(HttpServletRequest request) {
         String tenantId = request.getHeader(tenancyProperties.getHeader());
         if (!StringUtils.hasText(tenantId)) {
+            tenantId = resolveTenantFromToken(request).orElse(null);
+        }
+        if (!StringUtils.hasText(tenantId)) {
             tenantId = resolveTenantFromDomain(request.getServerName()).orElse(null);
         }
         if (!StringUtils.hasText(tenantId)) {
@@ -65,6 +71,19 @@ public class TenantContextFilter extends OncePerRequestFilter {
         } catch (NumberFormatException exception) {
             throw new IllegalArgumentException("Invalid tenant id: " + tenantId, exception);
         }
+    }
+
+    private Optional<String> resolveTenantFromToken(HttpServletRequest request) {
+        String token = jwtTokenService.resolveBearerToken(request.getHeader("Authorization"));
+        if (!StringUtils.hasText(token)) {
+            return Optional.empty();
+        }
+
+        JwtAccessTokenClaims claims = jwtTokenService.parseAccessToken(token);
+        if (claims.tenantId() == null) {
+            return Optional.empty();
+        }
+        return Optional.of(String.valueOf(claims.tenantId()));
     }
 
     private Optional<String> resolveTenantFromDomain(String serverName) {

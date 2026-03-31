@@ -51,7 +51,7 @@ management:
 app:
   security:
     jwt:
-      secret: ${JWT_SECRET:replace-with-a-strong-secret}
+      secret: ${JWT_SECRET:replace-with-a-strong-secret-for-luckycolor-admin}
       expires-in: ${JWT_EXPIRES_IN:2h}
   tenancy:
     enabled: ${TENANT_ENABLED:true}

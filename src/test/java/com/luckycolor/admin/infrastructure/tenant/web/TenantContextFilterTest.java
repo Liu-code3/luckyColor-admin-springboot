@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 
 import com.luckycolor.admin.LuckycolorAdminSpringbootApplication;
+import com.luckycolor.admin.infrastructure.security.jwt.JwtTokenService;
 import com.luckycolor.admin.infrastructure.tenant.core.TenantContextHolder;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -31,6 +32,9 @@ class TenantContextFilterTest {
     @Autowired
     private MockMvc mockMvc;
 
+    @Autowired
+    private JwtTokenService jwtTokenService;
+
     @AfterEach
     void tearDown() {
         TenantContextHolder.clear();
@@ -48,6 +52,16 @@ class TenantContextFilterTest {
         mockMvc.perform(get("/internal/tenant-context").with(user("tester")))
             .andExpect(status().isOk())
             .andExpect(content().string("2001"));
+    }
+
+    @Test
+    void shouldResolveTenantIdFromBearerToken() throws Exception {
+        String token = jwtTokenService.createAccessToken(1L, "coderLiu", 3001L, java.util.List.of("ROLE_ADMIN"));
+
+        mockMvc.perform(get("/internal/tenant-context").with(user("tester"))
+                .header("Authorization", "Bearer " + token))
+            .andExpect(status().isOk())
+            .andExpect(content().string("3001"));
     }
 
     @TestConfiguration
