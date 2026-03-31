@@ -37,7 +37,8 @@ public class TenancyProperties {
         "flyway_schema_history",
         "sys_tenant",
         "sys_tenant_package",
-        "sys_tenant_audit_log"
+        "sys_tenant_audit_log",
+        "sys_tenant_bootstrap_record"
     ));
 
     public boolean isIgnoredPath(String path) {
