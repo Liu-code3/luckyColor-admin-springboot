@@ -71,6 +71,10 @@ app:
           permissions:
             - system:user:query
             - system:user:create
+            - system:menu:query
+            - system:menu:create
+            - system:menu:update
+            - system:menu:delete
             - security:audit:query
             - tenant:query
             - tenant:create
