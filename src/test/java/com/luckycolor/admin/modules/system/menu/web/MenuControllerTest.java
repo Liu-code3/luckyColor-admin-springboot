@@ -1,8 +1,12 @@
 package com.luckycolor.admin.modules.system.menu.web;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -12,6 +16,7 @@ import com.luckycolor.admin.modules.system.menu.web.response.MenuTreeResponse;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
@@ -94,5 +99,48 @@ class MenuControllerTest {
             .andExpect(jsonPath("$.code").value(0))
             .andExpect(jsonPath("$.data.menuName").value("Dashboard"))
             .andExpect(jsonPath("$.data.roleCodes[0]").value("ROLE_SUPER_ADMIN"));
+    }
+
+    @Test
+    void shouldCreateMenu() throws Exception {
+        MenuService service = Mockito.mock(MenuService.class);
+        when(service.createMenu(any())).thenReturn(1L);
+        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new MenuController(service)).build();
+
+        mockMvc.perform(post("/admin/menus")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"parentId":0,"menuName":"System User","menuType":"MENU","routeName":"SystemUser","routePath":"users","component":"system/user/index","permissionCode":"system:user:query","roleCodes":["ROLE_SUPER_ADMIN"],"sort":1,"visible":1,"keepAlive":1,"alwaysShow":0,"status":0}
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data").value(1));
+    }
+
+    @Test
+    void shouldUpdateMenuStatus() throws Exception {
+        MenuService service = Mockito.mock(MenuService.class);
+        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new MenuController(service)).build();
+
+        mockMvc.perform(put("/admin/menus/1/status")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"status":1}
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data").value(true));
+
+        Mockito.verify(service).updateMenuStatus(eq(1L), any());
+    }
+
+    @Test
+    void shouldDeleteMenu() throws Exception {
+        MenuService service = Mockito.mock(MenuService.class);
+        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new MenuController(service)).build();
+
+        mockMvc.perform(delete("/admin/menus/1"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data").value(true));
+
+        Mockito.verify(service).deleteMenu(1L);
     }
 }

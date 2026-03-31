@@ -3,11 +3,16 @@ package com.luckycolor.admin.modules.system.menu.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.luckycolor.admin.modules.system.menu.dataobject.MenuDO;
 import com.luckycolor.admin.modules.system.menu.mapper.MenuMapper;
 import com.luckycolor.admin.modules.system.menu.service.impl.MenuServiceImpl;
+import com.luckycolor.admin.modules.system.menu.web.request.MenuSaveRequest;
+import com.luckycolor.admin.modules.system.menu.web.request.MenuStatusRequest;
 import com.luckycolor.admin.modules.system.menu.web.request.MenuTreeQuery;
 import com.luckycolor.admin.modules.system.menu.web.response.MenuDetailResponse;
 import com.luckycolor.admin.modules.system.menu.web.response.MenuTreeResponse;
@@ -63,6 +68,60 @@ class MenuServiceImplTest {
             .hasMessageContaining("404 NOT_FOUND");
     }
 
+    @Test
+    void shouldCreateMenu() {
+        MenuMapper mapper = Mockito.mock(MenuMapper.class);
+        when(mapper.selectById(0L)).thenReturn(null);
+        when(mapper.selectList(any())).thenReturn(List.of());
+        MenuService service = new MenuServiceImpl(mapper);
+
+        Long result = service.createMenu(buildSaveRequest());
+
+        assertThat(result).isNull();
+        verify(mapper).insert(any(MenuDO.class));
+    }
+
+    @Test
+    void shouldUpdateMenuStatus() {
+        MenuMapper mapper = Mockito.mock(MenuMapper.class);
+        MenuDO menu = menu(1L, 0L, "Dashboard", 1);
+        when(mapper.selectById(1L)).thenReturn(menu);
+        MenuService service = new MenuServiceImpl(mapper);
+        MenuStatusRequest request = new MenuStatusRequest();
+        request.setStatus(1);
+
+        service.updateMenuStatus(1L, request);
+
+        assertThat(menu.getStatus()).isEqualTo(1);
+        verify(mapper).updateById(menu);
+    }
+
+    @Test
+    void shouldRejectDeleteWhenMenuHasChildren() {
+        MenuMapper mapper = Mockito.mock(MenuMapper.class);
+        when(mapper.selectById(1L)).thenReturn(menu(1L, 0L, "System", 1));
+        when(mapper.selectCount(any())).thenReturn(1L);
+        MenuService service = new MenuServiceImpl(mapper);
+
+        assertThatThrownBy(() -> service.deleteMenu(1L))
+            .isInstanceOf(ResponseStatusException.class)
+            .hasMessageContaining("400 BAD_REQUEST");
+
+        verify(mapper, never()).deleteById(eq(1L));
+    }
+
+    @Test
+    void shouldDeleteMenuWithoutChildren() {
+        MenuMapper mapper = Mockito.mock(MenuMapper.class);
+        when(mapper.selectById(1L)).thenReturn(menu(1L, 0L, "System", 1));
+        when(mapper.selectCount(any())).thenReturn(0L);
+        MenuService service = new MenuServiceImpl(mapper);
+
+        service.deleteMenu(1L);
+
+        verify(mapper).deleteById(1L);
+    }
+
     private MenuDO menu(Long id, Long parentId, String menuName, Integer sort) {
         MenuDO menu = new MenuDO();
         menu.setId(id);
@@ -79,5 +138,23 @@ class MenuServiceImplTest {
         menu.setAlwaysShow(0);
         menu.setStatus(0);
         return menu;
+    }
+
+    private MenuSaveRequest buildSaveRequest() {
+        MenuSaveRequest request = new MenuSaveRequest();
+        request.setParentId(0L);
+        request.setMenuName("System User");
+        request.setMenuType("MENU");
+        request.setRouteName("SystemUser");
+        request.setRoutePath("users");
+        request.setComponent("system/user/index");
+        request.setPermissionCode("system:user:query");
+        request.setRoleCodes(List.of("ROLE_SUPER_ADMIN"));
+        request.setSort(1);
+        request.setVisible(1);
+        request.setKeepAlive(1);
+        request.setAlwaysShow(0);
+        request.setStatus(0);
+        return request;
     }
 }
