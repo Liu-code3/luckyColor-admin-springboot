@@ -3,6 +3,7 @@ package com.luckycolor.admin.modules.tenant.packageinfo.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.luckycolor.admin.common.page.PageResult;
 import com.luckycolor.admin.infrastructure.tenant.annotation.TenantIgnore;
+import com.luckycolor.admin.modules.tenant.audit.service.TenantAuditLogService;
 import com.luckycolor.admin.modules.tenant.packageinfo.dataobject.TenantPackageDO;
 import com.luckycolor.admin.modules.tenant.packageinfo.mapper.TenantPackageMapper;
 import com.luckycolor.admin.modules.tenant.packageinfo.service.TenantPackageService;
@@ -23,9 +24,14 @@ import org.springframework.http.HttpStatus;
 public class TenantPackageServiceImpl implements TenantPackageService {
 
     private final TenantPackageMapper tenantPackageMapper;
+    private final TenantAuditLogService tenantAuditLogService;
 
-    public TenantPackageServiceImpl(TenantPackageMapper tenantPackageMapper) {
+    public TenantPackageServiceImpl(
+        TenantPackageMapper tenantPackageMapper,
+        TenantAuditLogService tenantAuditLogService
+    ) {
         this.tenantPackageMapper = tenantPackageMapper;
+        this.tenantAuditLogService = tenantAuditLogService;
     }
 
     @Override
@@ -50,6 +56,7 @@ public class TenantPackageServiceImpl implements TenantPackageService {
         TenantPackageDO tenantPackage = new TenantPackageDO();
         fillTenantPackage(tenantPackage, request);
         tenantPackageMapper.insert(tenantPackage);
+        tenantAuditLogService.record(null, "TENANT_PACKAGE", tenantPackage.getId(), "CREATE", tenantPackage.getPackageName());
         return tenantPackage.getId();
     }
 
@@ -58,6 +65,7 @@ public class TenantPackageServiceImpl implements TenantPackageService {
         TenantPackageDO tenantPackage = getRequiredTenantPackage(id);
         fillTenantPackage(tenantPackage, request);
         tenantPackageMapper.updateById(tenantPackage);
+        tenantAuditLogService.record(null, "TENANT_PACKAGE", tenantPackage.getId(), "UPDATE", tenantPackage.getPackageName());
     }
 
     @Override
@@ -65,6 +73,7 @@ public class TenantPackageServiceImpl implements TenantPackageService {
         TenantPackageDO tenantPackage = getRequiredTenantPackage(id);
         tenantPackage.setStatus(request.getStatus());
         tenantPackageMapper.updateById(tenantPackage);
+        tenantAuditLogService.record(null, "TENANT_PACKAGE", tenantPackage.getId(), "UPDATE_STATUS", String.valueOf(request.getStatus()));
     }
 
     private LambdaQueryWrapper<TenantPackageDO> buildQueryWrapper(TenantPackagePageQuery query) {

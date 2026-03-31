@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 import com.luckycolor.admin.common.page.PageResult;
+import com.luckycolor.admin.modules.tenant.audit.service.TenantAuditLogService;
 import com.luckycolor.admin.modules.tenant.tenant.dataobject.TenantDO;
 import com.luckycolor.admin.modules.tenant.tenant.mapper.TenantMapper;
 import com.luckycolor.admin.modules.tenant.tenant.service.impl.TenantServiceImpl;
@@ -25,7 +26,8 @@ class TenantServiceImplTest {
     @Test
     void shouldConvertTenantPageResult() {
         TenantMapper mapper = Mockito.mock(TenantMapper.class);
-        TenantService service = new TenantServiceImpl(mapper);
+        TenantAuditLogService auditLogService = Mockito.mock(TenantAuditLogService.class);
+        TenantService service = new TenantServiceImpl(mapper, auditLogService);
         TenantDO tenant = new TenantDO();
         tenant.setId(1L);
         tenant.setName("Lucky Color");
@@ -46,7 +48,8 @@ class TenantServiceImplTest {
     @Test
     void shouldReturnTenantDetail() {
         TenantMapper mapper = Mockito.mock(TenantMapper.class);
-        TenantService service = new TenantServiceImpl(mapper);
+        TenantAuditLogService auditLogService = Mockito.mock(TenantAuditLogService.class);
+        TenantService service = new TenantServiceImpl(mapper, auditLogService);
         TenantDO tenant = buildTenant();
         when(mapper.selectById(1L)).thenReturn(tenant);
 
@@ -58,7 +61,8 @@ class TenantServiceImplTest {
     @Test
     void shouldCreateTenant() {
         TenantMapper mapper = Mockito.mock(TenantMapper.class);
-        TenantService service = new TenantServiceImpl(mapper);
+        TenantAuditLogService auditLogService = Mockito.mock(TenantAuditLogService.class);
+        TenantService service = new TenantServiceImpl(mapper, auditLogService);
         TenantSaveRequest request = buildSaveRequest();
         when(mapper.insert(any(TenantDO.class))).thenAnswer(invocation -> {
             TenantDO tenant = invocation.getArgument(0);
@@ -74,7 +78,8 @@ class TenantServiceImplTest {
     @Test
     void shouldUpdateTenantStatus() {
         TenantMapper mapper = Mockito.mock(TenantMapper.class);
-        TenantService service = new TenantServiceImpl(mapper);
+        TenantAuditLogService auditLogService = Mockito.mock(TenantAuditLogService.class);
+        TenantService service = new TenantServiceImpl(mapper, auditLogService);
         TenantDO tenant = buildTenant();
         when(mapper.selectById(1L)).thenReturn(tenant);
         when(mapper.updateById(any(TenantDO.class))).thenReturn(1);
@@ -91,7 +96,8 @@ class TenantServiceImplTest {
     @Test
     void shouldUpdateTenantExpireTime() {
         TenantMapper mapper = Mockito.mock(TenantMapper.class);
-        TenantService service = new TenantServiceImpl(mapper);
+        TenantAuditLogService auditLogService = Mockito.mock(TenantAuditLogService.class);
+        TenantService service = new TenantServiceImpl(mapper, auditLogService);
         TenantDO tenant = buildTenant();
         when(mapper.selectById(1L)).thenReturn(tenant);
         when(mapper.updateById(any(TenantDO.class))).thenReturn(1);

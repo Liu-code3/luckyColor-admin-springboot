@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 import com.luckycolor.admin.common.page.PageResult;
+import com.luckycolor.admin.modules.tenant.audit.service.TenantAuditLogService;
 import com.luckycolor.admin.modules.tenant.packageinfo.dataobject.TenantPackageDO;
 import com.luckycolor.admin.modules.tenant.packageinfo.mapper.TenantPackageMapper;
 import com.luckycolor.admin.modules.tenant.packageinfo.service.impl.TenantPackageServiceImpl;
@@ -23,7 +24,8 @@ class TenantPackageServiceImplTest {
     @Test
     void shouldConvertPageResult() {
         TenantPackageMapper mapper = Mockito.mock(TenantPackageMapper.class);
-        TenantPackageService service = new TenantPackageServiceImpl(mapper);
+        TenantAuditLogService auditLogService = Mockito.mock(TenantAuditLogService.class);
+        TenantPackageService service = new TenantPackageServiceImpl(mapper, auditLogService);
         TenantPackageDO tenantPackage = new TenantPackageDO();
         tenantPackage.setId(1L);
         tenantPackage.setPackageName("标准版");
@@ -41,7 +43,8 @@ class TenantPackageServiceImplTest {
     @Test
     void shouldReturnDetail() {
         TenantPackageMapper mapper = Mockito.mock(TenantPackageMapper.class);
-        TenantPackageService service = new TenantPackageServiceImpl(mapper);
+        TenantAuditLogService auditLogService = Mockito.mock(TenantAuditLogService.class);
+        TenantPackageService service = new TenantPackageServiceImpl(mapper, auditLogService);
         TenantPackageDO tenantPackage = new TenantPackageDO();
         tenantPackage.setId(1L);
         tenantPackage.setPackageName("标准版");
@@ -58,7 +61,8 @@ class TenantPackageServiceImplTest {
     @Test
     void shouldCreateTenantPackage() {
         TenantPackageMapper mapper = Mockito.mock(TenantPackageMapper.class);
-        TenantPackageService service = new TenantPackageServiceImpl(mapper);
+        TenantAuditLogService auditLogService = Mockito.mock(TenantAuditLogService.class);
+        TenantPackageService service = new TenantPackageServiceImpl(mapper, auditLogService);
         TenantPackageSaveRequest request = new TenantPackageSaveRequest();
         request.setPackageName("专业版");
         request.setStatus(0);
@@ -78,7 +82,8 @@ class TenantPackageServiceImplTest {
     @Test
     void shouldUpdateTenantPackageStatus() {
         TenantPackageMapper mapper = Mockito.mock(TenantPackageMapper.class);
-        TenantPackageService service = new TenantPackageServiceImpl(mapper);
+        TenantAuditLogService auditLogService = Mockito.mock(TenantAuditLogService.class);
+        TenantPackageService service = new TenantPackageServiceImpl(mapper, auditLogService);
         TenantPackageDO tenantPackage = new TenantPackageDO();
         tenantPackage.setId(1L);
         tenantPackage.setStatus(0);
