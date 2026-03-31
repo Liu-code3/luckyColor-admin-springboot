@@ -3,6 +3,8 @@ package com.luckycolor.admin.modules.system.user.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
@@ -14,12 +16,15 @@ import com.luckycolor.admin.modules.system.user.dataobject.SystemUserDO;
 import com.luckycolor.admin.modules.system.user.mapper.SystemUserMapper;
 import com.luckycolor.admin.modules.system.user.service.impl.SystemUserServiceImpl;
 import com.luckycolor.admin.modules.system.user.web.request.SystemUserPageQuery;
+import com.luckycolor.admin.modules.system.user.web.request.SystemUserSaveRequest;
+import com.luckycolor.admin.modules.system.user.web.request.SystemUserStatusRequest;
 import com.luckycolor.admin.modules.system.user.web.response.SystemUserDetailResponse;
 import com.luckycolor.admin.modules.system.user.web.response.SystemUserExportPreviewResponse;
 import com.luckycolor.admin.modules.system.user.web.response.SystemUserPageResponse;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.server.ResponseStatusException;
 
 class SystemUserServiceImplTest {
@@ -28,7 +33,7 @@ class SystemUserServiceImplTest {
     void shouldReturnUserPage() {
         SystemUserMapper mapper = Mockito.mock(SystemUserMapper.class);
         when(mapper.selectPageResult(any(), any())).thenReturn(PageResult.of(List.of(user()), 1L));
-        SystemUserService service = new SystemUserServiceImpl(mapper, noScopeBuilder(), localAuthProperties());
+        SystemUserService service = new SystemUserServiceImpl(mapper, noScopeBuilder(), localAuthProperties(), passwordEncoder());
 
         PageResult<SystemUserPageResponse> result = service.pageUsers(new SystemUserPageQuery());
 
@@ -40,7 +45,7 @@ class SystemUserServiceImplTest {
     void shouldReturnUserDetail() {
         SystemUserMapper mapper = Mockito.mock(SystemUserMapper.class);
         when(mapper.selectById(1L)).thenReturn(user());
-        SystemUserService service = new SystemUserServiceImpl(mapper, noScopeBuilder(), localAuthProperties());
+        SystemUserService service = new SystemUserServiceImpl(mapper, noScopeBuilder(), localAuthProperties(), passwordEncoder());
 
         SystemUserDetailResponse result = service.getUser(1L);
 
@@ -52,7 +57,7 @@ class SystemUserServiceImplTest {
     void shouldReturnRoleOptions() {
         SystemUserMapper mapper = Mockito.mock(SystemUserMapper.class);
         when(mapper.selectList(any(Wrapper.class))).thenReturn(List.of(user()));
-        SystemUserService service = new SystemUserServiceImpl(mapper, noScopeBuilder(), localAuthProperties());
+        SystemUserService service = new SystemUserServiceImpl(mapper, noScopeBuilder(), localAuthProperties(), passwordEncoder());
 
         List<String> result = service.listRoleOptions();
 
@@ -65,7 +70,7 @@ class SystemUserServiceImplTest {
         when(mapper.selectList(any(Wrapper.class))).thenReturn(List.of(user()));
         SystemUserPageQuery query = new SystemUserPageQuery();
         query.setPageSize(50L);
-        SystemUserService service = new SystemUserServiceImpl(mapper, noScopeBuilder(), localAuthProperties());
+        SystemUserService service = new SystemUserServiceImpl(mapper, noScopeBuilder(), localAuthProperties(), passwordEncoder());
 
         List<SystemUserExportPreviewResponse> result = service.listUsersForExportPreview(query);
 
@@ -77,11 +82,49 @@ class SystemUserServiceImplTest {
     void shouldThrowWhenUserNotFound() {
         SystemUserMapper mapper = Mockito.mock(SystemUserMapper.class);
         when(mapper.selectById(99L)).thenReturn(null);
-        SystemUserService service = new SystemUserServiceImpl(mapper, noScopeBuilder(), localAuthProperties());
+        SystemUserService service = new SystemUserServiceImpl(mapper, noScopeBuilder(), localAuthProperties(), passwordEncoder());
 
         assertThatThrownBy(() -> service.getUser(99L))
             .isInstanceOf(ResponseStatusException.class)
             .hasMessageContaining("404 NOT_FOUND");
+    }
+
+    @Test
+    void shouldCreateUser() {
+        SystemUserMapper mapper = Mockito.mock(SystemUserMapper.class);
+        when(mapper.selectList(any(Wrapper.class))).thenReturn(List.of());
+        SystemUserService service = new SystemUserServiceImpl(mapper, noScopeBuilder(), localAuthProperties(), passwordEncoder());
+
+        Long result = service.createUser(saveRequest());
+
+        assertThat(result).isNull();
+        verify(mapper).insert(any(SystemUserDO.class));
+    }
+
+    @Test
+    void shouldUpdateUserStatus() {
+        SystemUserMapper mapper = Mockito.mock(SystemUserMapper.class);
+        SystemUserDO user = user();
+        when(mapper.selectById(1L)).thenReturn(user);
+        SystemUserService service = new SystemUserServiceImpl(mapper, noScopeBuilder(), localAuthProperties(), passwordEncoder());
+        SystemUserStatusRequest request = new SystemUserStatusRequest();
+        request.setStatus(1);
+
+        service.updateUserStatus(1L, request);
+
+        assertThat(user.getStatus()).isEqualTo(1);
+        verify(mapper).updateById(user);
+    }
+
+    @Test
+    void shouldDeleteUser() {
+        SystemUserMapper mapper = Mockito.mock(SystemUserMapper.class);
+        when(mapper.selectById(1L)).thenReturn(user());
+        SystemUserService service = new SystemUserServiceImpl(mapper, noScopeBuilder(), localAuthProperties(), passwordEncoder());
+
+        service.deleteUser(1L);
+
+        verify(mapper).deleteById(1L);
     }
 
     private SystemUserDO user() {
@@ -116,5 +159,29 @@ class SystemUserServiceImplTest {
         user.setRoles(List.of("ROLE_TENANT_OPERATOR"));
         properties.setLocalUsers(List.of(user));
         return properties;
+    }
+
+    private PasswordEncoder passwordEncoder() {
+        PasswordEncoder passwordEncoder = Mockito.mock(PasswordEncoder.class);
+        when(passwordEncoder.encode(any())).thenReturn("$2a$encoded-password");
+        return passwordEncoder;
+    }
+
+    private SystemUserSaveRequest saveRequest() {
+        SystemUserSaveRequest request = new SystemUserSaveRequest();
+        request.setUsername("admin");
+        request.setPassword("admin123");
+        request.setNickname("System Admin");
+        request.setEmail("admin@example.com");
+        request.setMobile("13800000000");
+        request.setRoleCodes(List.of("ROLE_SUPER_ADMIN"));
+        request.setPermissionCodes(List.of("system:user:query"));
+        request.setDataScope("ALL");
+        request.setDepartmentId(100L);
+        request.setDepartmentIds(List.of(100L, 101L));
+        request.setScopeTenantIds(List.of(1L));
+        request.setStatus(0);
+        request.setRemark("default");
+        return request;
     }
 }

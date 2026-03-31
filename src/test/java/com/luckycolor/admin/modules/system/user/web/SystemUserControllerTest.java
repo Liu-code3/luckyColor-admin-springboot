@@ -1,8 +1,12 @@
 package com.luckycolor.admin.modules.system.user.web;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -14,6 +18,7 @@ import com.luckycolor.admin.modules.system.user.web.response.SystemUserPageRespo
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
@@ -100,5 +105,48 @@ class SystemUserControllerTest {
         mockMvc.perform(get("/admin/users/export-preview"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data[0].username").value("admin"));
+    }
+
+    @Test
+    void shouldCreateUser() throws Exception {
+        SystemUserService service = Mockito.mock(SystemUserService.class);
+        when(service.createUser(any())).thenReturn(1L);
+        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new SystemUserController(service)).build();
+
+        mockMvc.perform(post("/admin/users")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"username":"admin","password":"admin123","nickname":"System Admin","email":"admin@example.com","mobile":"13800000000","roleCodes":["ROLE_SUPER_ADMIN"],"permissionCodes":["system:user:query"],"dataScope":"ALL","departmentId":100,"departmentIds":[100,101],"scopeTenantIds":[1],"status":0,"remark":"default"}
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data").value(1));
+    }
+
+    @Test
+    void shouldUpdateUserStatus() throws Exception {
+        SystemUserService service = Mockito.mock(SystemUserService.class);
+        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new SystemUserController(service)).build();
+
+        mockMvc.perform(put("/admin/users/1/status")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"status":1}
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data").value(true));
+
+        Mockito.verify(service).updateUserStatus(eq(1L), any());
+    }
+
+    @Test
+    void shouldDeleteUser() throws Exception {
+        SystemUserService service = Mockito.mock(SystemUserService.class);
+        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new SystemUserController(service)).build();
+
+        mockMvc.perform(delete("/admin/users/1"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data").value(true));
+
+        Mockito.verify(service).deleteUser(1L);
     }
 }
