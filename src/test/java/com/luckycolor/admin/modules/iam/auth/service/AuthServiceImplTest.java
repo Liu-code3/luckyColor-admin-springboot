@@ -8,12 +8,18 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.luckycolor.admin.infrastructure.security.config.SecurityJwtProperties;
+import com.luckycolor.admin.infrastructure.security.jwt.JwtAuthenticatedUser;
 import com.luckycolor.admin.infrastructure.security.jwt.JwtTokenService;
 import com.luckycolor.admin.modules.iam.auth.config.LocalAuthProperties;
 import com.luckycolor.admin.modules.iam.auth.config.LoginCaptchaProperties;
 import com.luckycolor.admin.modules.iam.auth.service.impl.AuthServiceImpl;
+import com.luckycolor.admin.modules.iam.auth.service.impl.InMemoryAuthTokenSessionService;
+import com.luckycolor.admin.modules.iam.auth.service.impl.LocalAuthUserServiceImpl;
 import com.luckycolor.admin.modules.iam.auth.web.request.AuthLoginRequest;
 import com.luckycolor.admin.modules.iam.auth.web.response.AuthLoginResponse;
+import com.luckycolor.admin.modules.iam.auth.web.response.AuthPermissionSnapshotResponse;
+import com.luckycolor.admin.modules.iam.auth.web.response.AuthProfileResponse;
+import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -31,9 +37,10 @@ class AuthServiceImplTest {
         when(passwordEncoder.matches("admin123", "$2a$encoded-password")).thenReturn(true);
         when(jwtTokenService.createAccessToken(1L, "admin", 1L, List.of("ROLE_SUPER_ADMIN"))).thenReturn("jwt-token");
         AuthService authService = new AuthServiceImpl(
-            buildAuthProperties("$2a$encoded-password", 0),
+            new LocalAuthUserServiceImpl(buildAuthProperties("$2a$encoded-password", 0)),
             passwordEncoder,
             jwtTokenService,
+            new InMemoryAuthTokenSessionService(),
             buildJwtProperties(),
             buildCaptchaProperties(true),
             loginAuditService,
@@ -54,9 +61,10 @@ class AuthServiceImplTest {
     void shouldRejectUnknownUser() {
         LoginAuditService loginAuditService = Mockito.mock(LoginAuditService.class);
         AuthService authService = new AuthServiceImpl(
-            buildAuthProperties("admin123", 0),
+            new LocalAuthUserServiceImpl(buildAuthProperties("admin123", 0)),
             Mockito.mock(PasswordEncoder.class),
             Mockito.mock(JwtTokenService.class),
+            new InMemoryAuthTokenSessionService(),
             buildJwtProperties(),
             buildCaptchaProperties(false),
             loginAuditService,
@@ -79,9 +87,10 @@ class AuthServiceImplTest {
         PasswordEncoder passwordEncoder = Mockito.mock(PasswordEncoder.class);
         when(passwordEncoder.matches("wrong", "$2a$encoded-password")).thenReturn(false);
         AuthService authService = new AuthServiceImpl(
-            buildAuthProperties("$2a$encoded-password", 0),
+            new LocalAuthUserServiceImpl(buildAuthProperties("$2a$encoded-password", 0)),
             passwordEncoder,
             jwtTokenService,
+            new InMemoryAuthTokenSessionService(),
             buildJwtProperties(),
             buildCaptchaProperties(false),
             loginAuditService,
@@ -101,9 +110,10 @@ class AuthServiceImplTest {
     void shouldRejectDisabledUser() {
         LoginAuditService loginAuditService = Mockito.mock(LoginAuditService.class);
         AuthService authService = new AuthServiceImpl(
-            buildAuthProperties("admin123", 1),
+            new LocalAuthUserServiceImpl(buildAuthProperties("admin123", 1)),
             Mockito.mock(PasswordEncoder.class),
             Mockito.mock(JwtTokenService.class),
+            new InMemoryAuthTokenSessionService(),
             buildJwtProperties(),
             buildCaptchaProperties(false),
             loginAuditService,
@@ -120,9 +130,10 @@ class AuthServiceImplTest {
     @Test
     void shouldRejectWhenCaptchaServiceUnavailable() {
         AuthService authService = new AuthServiceImpl(
-            buildAuthProperties("admin123", 0),
+            new LocalAuthUserServiceImpl(buildAuthProperties("admin123", 0)),
             Mockito.mock(PasswordEncoder.class),
             Mockito.mock(JwtTokenService.class),
+            new InMemoryAuthTokenSessionService(),
             buildJwtProperties(),
             buildCaptchaProperties(true),
             Mockito.mock(LoginAuditService.class),
@@ -132,6 +143,72 @@ class AuthServiceImplTest {
         assertThatThrownBy(() -> authService.login(buildLoginRequest("admin123")))
             .isInstanceOf(ResponseStatusException.class)
             .hasMessageContaining("503 SERVICE_UNAVAILABLE");
+    }
+
+    @Test
+    void shouldRevokeTokenOnLogout() {
+        JwtTokenService jwtTokenService = Mockito.mock(JwtTokenService.class);
+        LoginAuditService loginAuditService = Mockito.mock(LoginAuditService.class);
+        InMemoryAuthTokenSessionService tokenSessionService = new InMemoryAuthTokenSessionService();
+        when(jwtTokenService.resolveExpiration("jwt-token")).thenReturn(Instant.now().plusSeconds(3600));
+        AuthService authService = new AuthServiceImpl(
+            new LocalAuthUserServiceImpl(buildAuthProperties("admin123", 0)),
+            Mockito.mock(PasswordEncoder.class),
+            jwtTokenService,
+            tokenSessionService,
+            buildJwtProperties(),
+            buildCaptchaProperties(false),
+            loginAuditService,
+            null
+        );
+
+        authService.logout(new JwtAuthenticatedUser(1L, "admin", 1L, List.of("ROLE_SUPER_ADMIN")), "jwt-token", "127.0.0.1");
+
+        assertThat(tokenSessionService.isRevoked("jwt-token")).isTrue();
+        verify(loginAuditService).recordSuccess("admin", 1L, "127.0.0.1");
+    }
+
+    @Test
+    void shouldReturnProfile() {
+        AuthService authService = new AuthServiceImpl(
+            new LocalAuthUserServiceImpl(buildAuthProperties("admin123", 0)),
+            Mockito.mock(PasswordEncoder.class),
+            Mockito.mock(JwtTokenService.class),
+            new InMemoryAuthTokenSessionService(),
+            buildJwtProperties(),
+            buildCaptchaProperties(false),
+            Mockito.mock(LoginAuditService.class),
+            null
+        );
+
+        AuthProfileResponse response = authService.getProfile(
+            new JwtAuthenticatedUser(1L, "admin", 1L, List.of("ROLE_SUPER_ADMIN"))
+        );
+
+        assertThat(response.username()).isEqualTo("admin");
+        assertThat(response.nickname()).isEqualTo("System Admin");
+        assertThat(response.roles()).containsExactly("ROLE_SUPER_ADMIN");
+    }
+
+    @Test
+    void shouldReturnPermissionSnapshot() {
+        AuthService authService = new AuthServiceImpl(
+            new LocalAuthUserServiceImpl(buildAuthProperties("admin123", 0)),
+            Mockito.mock(PasswordEncoder.class),
+            Mockito.mock(JwtTokenService.class),
+            new InMemoryAuthTokenSessionService(),
+            buildJwtProperties(),
+            buildCaptchaProperties(false),
+            Mockito.mock(LoginAuditService.class),
+            null
+        );
+
+        AuthPermissionSnapshotResponse response = authService.getPermissionSnapshot(
+            new JwtAuthenticatedUser(1L, "admin", 1L, List.of("ROLE_SUPER_ADMIN"))
+        );
+
+        assertThat(response.roles()).containsExactly("ROLE_SUPER_ADMIN");
+        assertThat(response.permissions()).containsExactly("system:user:query", "system:user:create");
     }
 
     private LocalAuthProperties buildAuthProperties(String password, int status) {
@@ -144,6 +221,7 @@ class AuthServiceImplTest {
         user.setNickname("System Admin");
         user.setStatus(status);
         user.setRoles(List.of("ROLE_SUPER_ADMIN"));
+        user.setPermissions(List.of("system:user:query", "system:user:create"));
         properties.setLocalUsers(List.of(user));
         return properties;
     }

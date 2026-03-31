@@ -3,6 +3,7 @@ package com.luckycolor.admin.infrastructure.security.web;
 import com.luckycolor.admin.infrastructure.security.jwt.JwtAccessTokenClaims;
 import com.luckycolor.admin.infrastructure.security.jwt.JwtAuthenticatedUser;
 import com.luckycolor.admin.infrastructure.security.jwt.JwtTokenService;
+import com.luckycolor.admin.modules.iam.auth.service.AuthTokenSessionService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -19,9 +20,11 @@ import org.springframework.web.filter.OncePerRequestFilter;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtTokenService jwtTokenService;
+    private final AuthTokenSessionService authTokenSessionService;
 
-    public JwtAuthenticationFilter(JwtTokenService jwtTokenService) {
+    public JwtAuthenticationFilter(JwtTokenService jwtTokenService, AuthTokenSessionService authTokenSessionService) {
         this.jwtTokenService = jwtTokenService;
+        this.authTokenSessionService = authTokenSessionService;
     }
 
     @Override
@@ -33,11 +36,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (SecurityContextHolder.getContext().getAuthentication() == null) {
             String token = jwtTokenService.resolveBearerToken(request.getHeader("Authorization"));
             if (token != null) {
+                if (authTokenSessionService.isRevoked(token)) {
+                    filterChain.doFilter(request, response);
+                    return;
+                }
                 JwtAccessTokenClaims claims = jwtTokenService.parseAccessToken(token);
                 JwtAuthenticatedUser principal = new JwtAuthenticatedUser(
                     claims.userId(),
                     claims.username(),
-                    claims.tenantId()
+                    claims.tenantId(),
+                    claims.roles()
                 );
                 UsernamePasswordAuthenticationToken authentication =
                     new UsernamePasswordAuthenticationToken(

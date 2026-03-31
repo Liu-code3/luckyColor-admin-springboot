@@ -60,3 +60,11 @@ Login endpoint:
 ```text
 POST /api/auth/login
 ```
+
+Current user endpoints:
+
+```text
+POST /api/auth/logout
+GET /api/auth/profile
+GET /api/auth/permissions
+```

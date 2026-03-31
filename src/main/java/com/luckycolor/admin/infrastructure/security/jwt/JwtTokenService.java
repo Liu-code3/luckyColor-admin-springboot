@@ -61,6 +61,16 @@ public class JwtTokenService {
         );
     }
 
+    public Instant resolveExpiration(String token) {
+        Claims claims = Jwts.parser()
+            .verifyWith(buildSecretKey())
+            .build()
+            .parseSignedClaims(token)
+            .getPayload();
+        Date expiration = claims.getExpiration();
+        return expiration == null ? null : expiration.toInstant();
+    }
+
     public String resolveBearerToken(String authorizationHeader) {
         if (!StringUtils.hasText(authorizationHeader)) {
             return null;

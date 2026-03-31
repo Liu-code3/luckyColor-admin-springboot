@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.luckycolor.admin.LuckycolorAdminSpringbootApplication;
 import com.luckycolor.admin.infrastructure.security.jwt.JwtAuthenticatedUser;
 import com.luckycolor.admin.infrastructure.security.jwt.JwtTokenService;
+import com.luckycolor.admin.modules.iam.auth.service.AuthTokenSessionService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -33,13 +34,25 @@ class JwtAuthenticationFilterTest {
     @Autowired
     private JwtTokenService jwtTokenService;
 
+    @Autowired
+    private AuthTokenSessionService authTokenSessionService;
+
     @Test
     void shouldAuthenticateRequestFromBearerToken() throws Exception {
-        String token = jwtTokenService.createAccessToken(1L, "coderLiu", 1001L, java.util.List.of("ROLE_ADMIN"));
+        String token = jwtTokenService.createAccessToken(1L, "coderLiuActive", 1001L, java.util.List.of("ROLE_ADMIN"));
 
         mockMvc.perform(get("/internal/auth-context").header("Authorization", "Bearer " + token))
             .andExpect(status().isOk())
-            .andExpect(content().string("coderLiu@1001"));
+            .andExpect(content().string("coderLiuActive@1001"));
+    }
+
+    @Test
+    void shouldRejectRevokedToken() throws Exception {
+        String token = jwtTokenService.createAccessToken(1L, "coderLiuRevoked", 1001L, java.util.List.of("ROLE_ADMIN"));
+        authTokenSessionService.revoke(token, jwtTokenService.resolveExpiration(token));
+
+        mockMvc.perform(get("/internal/auth-context").header("Authorization", "Bearer " + token))
+            .andExpect(status().isForbidden());
     }
 
     @TestConfiguration

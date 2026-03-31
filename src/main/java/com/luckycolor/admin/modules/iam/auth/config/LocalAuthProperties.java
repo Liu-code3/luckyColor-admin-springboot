@@ -30,5 +30,7 @@ public class LocalAuthProperties {
         private Integer status = 0;
 
         private List<String> roles = new ArrayList<>();
+
+        private List<String> permissions = new ArrayList<>();
     }
 }

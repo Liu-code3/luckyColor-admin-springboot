@@ -67,6 +67,9 @@ app:
           status: 0
           roles:
             - ROLE_SUPER_ADMIN
+          permissions:
+            - system:user:query
+            - system:user:create
   tenancy:
     enabled: ${TENANT_ENABLED:true}
     header: ${TENANT_HEADER:x-tenant-id}
