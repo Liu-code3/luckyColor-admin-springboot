@@ -71,6 +71,12 @@ app:
           permissions:
             - system:user:query
             - system:user:create
+            - system:user:update
+            - system:user:delete
+            - system:user:reset-password
+            - system:user:assign-role
+            - system:user:import
+            - system:user:export
             - system:menu:query
             - system:menu:create
             - system:menu:update
