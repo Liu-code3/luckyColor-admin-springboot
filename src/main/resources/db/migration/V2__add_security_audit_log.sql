@@ -1,0 +1,23 @@
+CREATE TABLE IF NOT EXISTS sys_security_audit_log (
+    id BIGINT NOT NULL,
+    tenant_id BIGINT NULL,
+    user_id BIGINT NULL,
+    username VARCHAR(64) NULL,
+    event_type VARCHAR(50) NOT NULL,
+    success TINYINT NOT NULL DEFAULT 0,
+    request_method VARCHAR(10) NULL,
+    request_uri VARCHAR(255) NULL,
+    remote_ip VARCHAR(64) NULL,
+    reason VARCHAR(255) NULL,
+    create_by VARCHAR(64) NULL,
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_by VARCHAR(64) NULL,
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_sys_security_audit_log_tenant_id (tenant_id),
+    KEY idx_sys_security_audit_log_user_id (user_id),
+    KEY idx_sys_security_audit_log_username (username),
+    KEY idx_sys_security_audit_log_event_type (event_type),
+    KEY idx_sys_security_audit_log_success (success),
+    KEY idx_sys_security_audit_log_create_time (create_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='安全审计日志表';

@@ -3,14 +3,15 @@ package com.luckycolor.admin.modules.iam.auth.service.impl;
 import com.luckycolor.admin.infrastructure.security.config.SecurityJwtProperties;
 import com.luckycolor.admin.infrastructure.security.jwt.JwtAuthenticatedUser;
 import com.luckycolor.admin.infrastructure.security.jwt.JwtTokenService;
+import com.luckycolor.admin.modules.iam.audit.service.SecurityAuditLogService;
 import com.luckycolor.admin.modules.iam.auth.config.LoginCaptchaProperties;
 import com.luckycolor.admin.modules.iam.auth.model.AuthUser;
 import com.luckycolor.admin.modules.iam.auth.service.AuthAccessRouteService;
 import com.luckycolor.admin.modules.iam.auth.service.AuthService;
-import com.luckycolor.admin.modules.iam.auth.service.LoginAuditService;
 import com.luckycolor.admin.modules.iam.auth.service.LoginCaptchaService;
 import com.luckycolor.admin.modules.iam.auth.service.AuthTokenSessionService;
 import com.luckycolor.admin.modules.iam.auth.service.AuthUserService;
+import com.luckycolor.admin.modules.iam.auth.service.LoginAuditService;
 import com.luckycolor.admin.modules.iam.auth.web.request.AuthLoginRequest;
 import com.luckycolor.admin.modules.iam.auth.web.response.AuthAccessSnapshotResponse;
 import com.luckycolor.admin.modules.iam.auth.web.response.AuthLoginResponse;
@@ -39,6 +40,7 @@ public class AuthServiceImpl implements AuthService {
     private final LoginCaptchaProperties loginCaptchaProperties;
     private final LoginAuditService loginAuditService;
     private final LoginCaptchaService loginCaptchaService;
+    private final SecurityAuditLogService securityAuditLogService;
 
     public AuthServiceImpl(
         AuthUserService authUserService,
@@ -49,6 +51,7 @@ public class AuthServiceImpl implements AuthService {
         SecurityJwtProperties securityJwtProperties,
         LoginCaptchaProperties loginCaptchaProperties,
         LoginAuditService loginAuditService,
+        @Nullable SecurityAuditLogService securityAuditLogService,
         @Nullable LoginCaptchaService loginCaptchaService
     ) {
         this.authUserService = authUserService;
@@ -59,6 +62,7 @@ public class AuthServiceImpl implements AuthService {
         this.securityJwtProperties = securityJwtProperties;
         this.loginCaptchaProperties = loginCaptchaProperties;
         this.loginAuditService = loginAuditService;
+        this.securityAuditLogService = securityAuditLogService;
         this.loginCaptchaService = loginCaptchaService;
     }
 
@@ -67,15 +71,27 @@ public class AuthServiceImpl implements AuthService {
         validateCaptchaIfNecessary(request);
         AuthUser user = authUserService.findByUsername(request.getUsername());
         if (user == null) {
-            loginAuditService.recordFailure(request.getUsername(), null, request.getRemoteIp(), "USER_NOT_FOUND");
+            loginAuditService.recordFailure(null, request.getUsername(), null, request.getRemoteIp(), "USER_NOT_FOUND");
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Username or password is incorrect");
         }
         if (!Objects.equals(user.status(), 0)) {
-            loginAuditService.recordFailure(user.username(), user.tenantId(), request.getRemoteIp(), "USER_DISABLED");
+            loginAuditService.recordFailure(
+                user.userId(),
+                user.username(),
+                user.tenantId(),
+                request.getRemoteIp(),
+                "USER_DISABLED"
+            );
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "User is disabled");
         }
         if (!matchesPassword(request.getPassword(), user.password())) {
-            loginAuditService.recordFailure(user.username(), user.tenantId(), request.getRemoteIp(), "PASSWORD_MISMATCH");
+            loginAuditService.recordFailure(
+                user.userId(),
+                user.username(),
+                user.tenantId(),
+                request.getRemoteIp(),
+                "PASSWORD_MISMATCH"
+            );
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Username or password is incorrect");
         }
 
@@ -85,7 +101,7 @@ public class AuthServiceImpl implements AuthService {
             user.tenantId(),
             user.roles()
         );
-        loginAuditService.recordSuccess(user.username(), user.tenantId(), request.getRemoteIp());
+        loginAuditService.recordSuccess(user.userId(), user.username(), user.tenantId(), request.getRemoteIp());
         return new AuthLoginResponse(
             accessToken,
             "Bearer",
@@ -108,7 +124,14 @@ public class AuthServiceImpl implements AuthService {
         }
         Instant expiresAt = jwtTokenService.resolveExpiration(token);
         authTokenSessionService.revoke(token, expiresAt);
-        loginAuditService.recordSuccess(authenticatedUser.username(), authenticatedUser.tenantId(), remoteIp);
+        if (securityAuditLogService != null) {
+            securityAuditLogService.recordLogout(
+                authenticatedUser.userId(),
+                authenticatedUser.username(),
+                authenticatedUser.tenantId(),
+                remoteIp
+            );
+        }
     }
 
     @Override

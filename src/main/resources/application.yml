@@ -71,6 +71,7 @@ app:
           permissions:
             - system:user:query
             - system:user:create
+            - security:audit:query
             - tenant:query
             - tenant:create
             - tenant:update
@@ -145,6 +146,7 @@ app:
       - sys_tenant_package
       - sys_tenant_audit_log
       - sys_tenant_bootstrap_record
+      - sys_security_audit_log
     bootstrap:
       templates:
         - code: default

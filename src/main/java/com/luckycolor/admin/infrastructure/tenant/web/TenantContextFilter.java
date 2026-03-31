@@ -2,6 +2,7 @@ package com.luckycolor.admin.infrastructure.tenant.web;
 
 import com.luckycolor.admin.infrastructure.security.jwt.JwtAccessTokenClaims;
 import com.luckycolor.admin.infrastructure.security.jwt.JwtTokenService;
+import com.luckycolor.admin.infrastructure.security.web.SecurityRequestAttributes;
 import com.luckycolor.admin.infrastructure.tenant.config.TenancyProperties;
 import com.luckycolor.admin.infrastructure.tenant.core.TenantContextHolder;
 import jakarta.servlet.FilterChain;
@@ -40,6 +41,10 @@ public class TenantContextFilter extends OncePerRequestFilter {
         try {
             Optional<Long> tenantId = resolveTenantId(request);
             if (tenantId.isEmpty()) {
+                if (request.getAttribute(SecurityRequestAttributes.AUTH_FAILURE_REASON) != null) {
+                    filterChain.doFilter(request, response);
+                    return;
+                }
                 response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Missing tenant id");
                 return;
             }
@@ -79,7 +84,13 @@ public class TenantContextFilter extends OncePerRequestFilter {
             return Optional.empty();
         }
 
-        JwtAccessTokenClaims claims = jwtTokenService.parseAccessToken(token);
+        JwtAccessTokenClaims claims;
+        try {
+            claims = jwtTokenService.parseAccessToken(token);
+        } catch (RuntimeException exception) {
+            request.setAttribute(SecurityRequestAttributes.AUTH_FAILURE_REASON, "TOKEN_INVALID");
+            return Optional.empty();
+        }
         if (claims.tenantId() == null) {
             return Optional.empty();
         }

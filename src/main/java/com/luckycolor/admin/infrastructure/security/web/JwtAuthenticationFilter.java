@@ -10,6 +10,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.List;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -37,10 +38,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String token = jwtTokenService.resolveBearerToken(request.getHeader("Authorization"));
             if (token != null) {
                 if (authTokenSessionService.isRevoked(token)) {
+                    request.setAttribute(SecurityRequestAttributes.AUTH_FAILURE_REASON, "TOKEN_REVOKED");
                     filterChain.doFilter(request, response);
                     return;
                 }
-                JwtAccessTokenClaims claims = jwtTokenService.parseAccessToken(token);
+                JwtAccessTokenClaims claims;
+                try {
+                    claims = jwtTokenService.parseAccessToken(token);
+                } catch (RuntimeException exception) {
+                    request.setAttribute(SecurityRequestAttributes.AUTH_FAILURE_REASON, resolveFailureReason(exception));
+                    filterChain.doFilter(request, response);
+                    return;
+                }
                 JwtAuthenticatedUser principal = new JwtAuthenticatedUser(
                     claims.userId(),
                     claims.username(),
@@ -58,6 +67,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private String resolveFailureReason(RuntimeException exception) {
+        if (exception instanceof BadCredentialsException) {
+            return "TOKEN_INVALID";
+        }
+        return "TOKEN_INVALID";
     }
 
     private List<SimpleGrantedAuthority> toAuthorities(List<String> roles) {

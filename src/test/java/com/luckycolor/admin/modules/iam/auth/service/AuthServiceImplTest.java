@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 import com.luckycolor.admin.infrastructure.security.config.SecurityJwtProperties;
 import com.luckycolor.admin.infrastructure.security.jwt.JwtAuthenticatedUser;
 import com.luckycolor.admin.infrastructure.security.jwt.JwtTokenService;
+import com.luckycolor.admin.modules.iam.audit.service.SecurityAuditLogService;
 import com.luckycolor.admin.modules.iam.auth.config.AuthAccessProperties;
 import com.luckycolor.admin.modules.iam.auth.config.LocalAuthProperties;
 import com.luckycolor.admin.modules.iam.auth.config.LoginCaptchaProperties;
@@ -49,6 +50,7 @@ class AuthServiceImplTest {
             buildJwtProperties(),
             buildCaptchaProperties(true),
             loginAuditService,
+            null,
             loginCaptchaService
         );
 
@@ -59,7 +61,7 @@ class AuthServiceImplTest {
         assertThat(response.userId()).isEqualTo(1L);
         assertThat(response.tenantId()).isEqualTo(1L);
         verify(loginCaptchaService).validateCaptcha("captcha-1", "ABCD");
-        verify(loginAuditService).recordSuccess("admin", 1L, "127.0.0.1");
+        verify(loginAuditService).recordSuccess(1L, "admin", 1L, "127.0.0.1");
     }
 
     @Test
@@ -74,6 +76,7 @@ class AuthServiceImplTest {
             buildJwtProperties(),
             buildCaptchaProperties(false),
             loginAuditService,
+            null,
             null
         );
         AuthLoginRequest request = buildLoginRequest("admin123");
@@ -83,7 +86,7 @@ class AuthServiceImplTest {
             .isInstanceOf(ResponseStatusException.class)
             .hasMessageContaining("401 UNAUTHORIZED");
 
-        verify(loginAuditService).recordFailure("missing", null, "127.0.0.1", "USER_NOT_FOUND");
+        verify(loginAuditService).recordFailure(null, "missing", null, "127.0.0.1", "USER_NOT_FOUND");
     }
 
     @Test
@@ -101,6 +104,7 @@ class AuthServiceImplTest {
             buildJwtProperties(),
             buildCaptchaProperties(false),
             loginAuditService,
+            null,
             null
         );
         AuthLoginRequest request = buildLoginRequest("wrong");
@@ -109,7 +113,7 @@ class AuthServiceImplTest {
             .isInstanceOf(ResponseStatusException.class)
             .hasMessageContaining("401 UNAUTHORIZED");
 
-        verify(loginAuditService).recordFailure("admin", 1L, "127.0.0.1", "PASSWORD_MISMATCH");
+        verify(loginAuditService).recordFailure(1L, "admin", 1L, "127.0.0.1", "PASSWORD_MISMATCH");
         verify(jwtTokenService, never()).createAccessToken(eq(1L), eq("admin"), eq(1L), eq(List.of("ROLE_SUPER_ADMIN")));
     }
 
@@ -125,6 +129,7 @@ class AuthServiceImplTest {
             buildJwtProperties(),
             buildCaptchaProperties(false),
             loginAuditService,
+            null,
             null
         );
 
@@ -132,7 +137,7 @@ class AuthServiceImplTest {
             .isInstanceOf(ResponseStatusException.class)
             .hasMessageContaining("403 FORBIDDEN");
 
-        verify(loginAuditService).recordFailure("admin", 1L, "127.0.0.1", "USER_DISABLED");
+        verify(loginAuditService).recordFailure(1L, "admin", 1L, "127.0.0.1", "USER_DISABLED");
     }
 
     @Test
@@ -146,6 +151,7 @@ class AuthServiceImplTest {
             buildJwtProperties(),
             buildCaptchaProperties(true),
             Mockito.mock(LoginAuditService.class),
+            null,
             null
         );
 
@@ -157,7 +163,7 @@ class AuthServiceImplTest {
     @Test
     void shouldRevokeTokenOnLogout() {
         JwtTokenService jwtTokenService = Mockito.mock(JwtTokenService.class);
-        LoginAuditService loginAuditService = Mockito.mock(LoginAuditService.class);
+        SecurityAuditLogService securityAuditLogService = Mockito.mock(SecurityAuditLogService.class);
         InMemoryAuthTokenSessionService tokenSessionService = new InMemoryAuthTokenSessionService();
         when(jwtTokenService.resolveExpiration("jwt-token")).thenReturn(Instant.now().plusSeconds(3600));
         AuthService authService = new AuthServiceImpl(
@@ -168,14 +174,15 @@ class AuthServiceImplTest {
             new AuthAccessRouteServiceImpl(buildAccessProperties()),
             buildJwtProperties(),
             buildCaptchaProperties(false),
-            loginAuditService,
+            Mockito.mock(LoginAuditService.class),
+            securityAuditLogService,
             null
         );
 
         authService.logout(new JwtAuthenticatedUser(1L, "admin", 1L, List.of("ROLE_SUPER_ADMIN")), "jwt-token", "127.0.0.1");
 
         assertThat(tokenSessionService.isRevoked("jwt-token")).isTrue();
-        verify(loginAuditService).recordSuccess("admin", 1L, "127.0.0.1");
+        verify(securityAuditLogService).recordLogout(1L, "admin", 1L, "127.0.0.1");
     }
 
     @Test
@@ -189,6 +196,7 @@ class AuthServiceImplTest {
             buildJwtProperties(),
             buildCaptchaProperties(false),
             Mockito.mock(LoginAuditService.class),
+            null,
             null
         );
 
@@ -212,6 +220,7 @@ class AuthServiceImplTest {
             buildJwtProperties(),
             buildCaptchaProperties(false),
             Mockito.mock(LoginAuditService.class),
+            null,
             null
         );
 
@@ -234,6 +243,7 @@ class AuthServiceImplTest {
             buildJwtProperties(),
             buildCaptchaProperties(false),
             Mockito.mock(LoginAuditService.class),
+            null,
             null
         );
 
@@ -262,6 +272,7 @@ class AuthServiceImplTest {
             buildJwtProperties(),
             buildCaptchaProperties(false),
             Mockito.mock(LoginAuditService.class),
+            null,
             null
         );
 

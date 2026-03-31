@@ -42,7 +42,8 @@ public class TenancyProperties {
         "sys_tenant",
         "sys_tenant_package",
         "sys_tenant_audit_log",
-        "sys_tenant_bootstrap_record"
+        "sys_tenant_bootstrap_record",
+        "sys_security_audit_log"
     ));
 
     public boolean isIgnoredPath(String path) {

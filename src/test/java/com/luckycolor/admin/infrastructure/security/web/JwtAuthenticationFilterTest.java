@@ -58,6 +58,15 @@ class JwtAuthenticationFilterTest {
                 """, false));
     }
 
+    @Test
+    void shouldRejectInvalidToken() throws Exception {
+        mockMvc.perform(get("/internal/auth-context").header("Authorization", "Bearer invalid-token"))
+            .andExpect(status().isUnauthorized())
+            .andExpect(content().json("""
+                {"code":40100,"message":"Unauthorized"}
+                """, false));
+    }
+
     @TestConfiguration
     static class TestAuthenticationControllerConfiguration {
 
