@@ -19,6 +19,7 @@ LuckyColor Admin backend rewrite based on Spring Boot.
 - Multi-tenant baseline enabled with request header context, tenant SQL isolation, and audit auto-fill
 - Redis cache baseline added with JSON serialization and unified key prefix
 - Login captcha baseline added with SVG image generation and Redis-backed one-time verification
+- Local login baseline added with captcha validation, password checking, JWT issuing, and audit logging
 - Use `@TenantIgnore` on public-data flows when a method must bypass tenant SQL injection explicitly
 - Mapper interfaces should use `@Mapper` explicitly instead of wide-package scanning
 - Shared paging contracts are available via `PageQuery`, `PageResult`, and `BaseMapperX`
@@ -52,4 +53,10 @@ Login captcha endpoint:
 
 ```text
 GET /api/auth/captcha
+```
+
+Login endpoint:
+
+```text
+POST /api/auth/login
 ```

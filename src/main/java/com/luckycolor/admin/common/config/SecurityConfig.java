@@ -34,6 +34,8 @@ public class SecurityConfig {
                 .requestMatchers(
                     "/auth/captcha",
                     "/api/auth/captcha",
+                    "/auth/login",
+                    "/api/auth/login",
                     "/health",
                     "/api/health",
                     "/docs/**",

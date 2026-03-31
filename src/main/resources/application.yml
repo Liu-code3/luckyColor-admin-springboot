@@ -57,6 +57,16 @@ app:
     jwt:
       secret: ${JWT_SECRET:replace-with-a-strong-secret-for-luckycolor-admin}
       expires-in: ${JWT_EXPIRES_IN:2h}
+    auth:
+      local-users:
+        - user-id: 1
+          username: admin
+          password: ${ADMIN_PASSWORD:admin123}
+          tenant-id: 1
+          nickname: System Admin
+          status: 0
+          roles:
+            - ROLE_SUPER_ADMIN
   tenancy:
     enabled: ${TENANT_ENABLED:true}
     header: ${TENANT_HEADER:x-tenant-id}
