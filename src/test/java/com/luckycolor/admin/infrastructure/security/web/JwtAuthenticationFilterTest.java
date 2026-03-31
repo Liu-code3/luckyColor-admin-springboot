@@ -52,7 +52,10 @@ class JwtAuthenticationFilterTest {
         authTokenSessionService.revoke(token, jwtTokenService.resolveExpiration(token));
 
         mockMvc.perform(get("/internal/auth-context").header("Authorization", "Bearer " + token))
-            .andExpect(status().isForbidden());
+            .andExpect(status().isUnauthorized())
+            .andExpect(content().json("""
+                {"code":40100,"message":"Unauthorized"}
+                """, false));
     }
 
     @TestConfiguration

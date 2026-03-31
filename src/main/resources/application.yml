@@ -70,6 +70,12 @@ app:
           permissions:
             - system:user:query
             - system:user:create
+            - tenant:query
+            - tenant:create
+            - tenant:update
+            - tenant:package:query
+            - tenant:package:create
+            - tenant:package:update
     access:
       routes:
         - code: dashboard

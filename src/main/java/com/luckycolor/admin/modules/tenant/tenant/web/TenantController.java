@@ -2,6 +2,7 @@ package com.luckycolor.admin.modules.tenant.tenant.web;
 
 import com.luckycolor.admin.common.api.ApiResponse;
 import com.luckycolor.admin.common.page.PageResult;
+import com.luckycolor.admin.infrastructure.security.authorization.RequirePermission;
 import com.luckycolor.admin.modules.tenant.tenant.mapper.TenantMapper;
 import com.luckycolor.admin.modules.tenant.tenant.service.TenantService;
 import com.luckycolor.admin.modules.tenant.tenant.web.request.TenantExpireTimeRequest;
@@ -34,33 +35,39 @@ public class TenantController {
     }
 
     @GetMapping("/page")
+    @RequirePermission("tenant:query")
     public ApiResponse<PageResult<TenantPageResponse>> page(TenantPageQuery query) {
         return ApiResponse.success(tenantService.pageTenants(query));
     }
 
     @GetMapping("/{id}")
+    @RequirePermission("tenant:query")
     public ApiResponse<TenantDetailResponse> get(@PathVariable Long id) {
         return ApiResponse.success(tenantService.getTenant(id));
     }
 
     @PostMapping
+    @RequirePermission("tenant:create")
     public ApiResponse<Long> create(@Valid @RequestBody TenantSaveRequest request) {
         return ApiResponse.success(tenantService.createTenant(request));
     }
 
     @PutMapping("/{id}")
+    @RequirePermission("tenant:update")
     public ApiResponse<Boolean> update(@PathVariable Long id, @Valid @RequestBody TenantSaveRequest request) {
         tenantService.updateTenant(id, request);
         return ApiResponse.success(true);
     }
 
     @PutMapping("/{id}/status")
+    @RequirePermission("tenant:update")
     public ApiResponse<Boolean> updateStatus(@PathVariable Long id, @Valid @RequestBody TenantStatusRequest request) {
         tenantService.updateTenantStatus(id, request);
         return ApiResponse.success(true);
     }
 
     @PutMapping("/{id}/expire-time")
+    @RequirePermission("tenant:update")
     public ApiResponse<Boolean> updateExpireTime(
         @PathVariable Long id,
         @Valid @RequestBody TenantExpireTimeRequest request

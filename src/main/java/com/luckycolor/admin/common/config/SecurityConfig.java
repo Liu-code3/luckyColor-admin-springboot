@@ -1,6 +1,8 @@
 package com.luckycolor.admin.common.config;
 
 import com.luckycolor.admin.infrastructure.security.web.JwtAuthenticationFilter;
+import com.luckycolor.admin.infrastructure.security.web.JsonAccessDeniedHandler;
+import com.luckycolor.admin.infrastructure.security.web.JsonAuthenticationEntryPoint;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.Customizer;
@@ -18,9 +20,17 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final JsonAuthenticationEntryPoint jsonAuthenticationEntryPoint;
+    private final JsonAccessDeniedHandler jsonAccessDeniedHandler;
 
-    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
+    public SecurityConfig(
+        JwtAuthenticationFilter jwtAuthenticationFilter,
+        JsonAuthenticationEntryPoint jsonAuthenticationEntryPoint,
+        JsonAccessDeniedHandler jsonAccessDeniedHandler
+    ) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.jsonAuthenticationEntryPoint = jsonAuthenticationEntryPoint;
+        this.jsonAccessDeniedHandler = jsonAccessDeniedHandler;
     }
 
     @Bean
@@ -29,6 +39,9 @@ public class SecurityConfig {
             .csrf(AbstractHttpConfigurer::disable)
             .httpBasic(AbstractHttpConfigurer::disable)
             .formLogin(AbstractHttpConfigurer::disable)
+            .exceptionHandling(exceptionHandling -> exceptionHandling
+                .authenticationEntryPoint(jsonAuthenticationEntryPoint)
+                .accessDeniedHandler(jsonAccessDeniedHandler))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(authorize -> authorize
                 .requestMatchers(
