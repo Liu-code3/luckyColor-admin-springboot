@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.extension.plugins.inner.TenantLineInnerIntercept
 import com.baomidou.mybatisplus.extension.plugins.handler.TenantLineHandler;
 import com.luckycolor.admin.infrastructure.tenant.config.TenancyProperties;
 import com.luckycolor.admin.infrastructure.tenant.core.TenantContextHolder;
+import com.luckycolor.admin.infrastructure.tenant.core.TenantIgnoreContextHolder;
 import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.expression.LongValue;
 import org.springframework.context.annotation.Bean;
@@ -32,7 +33,8 @@ public class MybatisPlusConfig {
 
                 @Override
                 public boolean ignoreTable(String tableName) {
-                    return tenancyProperties.isIgnoredTable(tableName);
+                    return TenantIgnoreContextHolder.isIgnoreTenant()
+                        || tenancyProperties.isIgnoredTable(tableName);
                 }
             }));
         }

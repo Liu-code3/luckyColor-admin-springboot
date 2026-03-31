@@ -16,6 +16,8 @@ LuckyColor Admin backend rewrite based on Spring Boot.
 - Base application scaffold created from Spring Initializr
 - Persistence baseline switched to MyBatis-Plus
 - Multi-tenant baseline enabled with request header context, tenant SQL isolation, and audit auto-fill
+- Use `@TenantIgnore` on public-data flows when a method must bypass tenant SQL injection explicitly
+- Mapper interfaces should use `@Mapper` explicitly instead of wide-package scanning
 - Context path configured as `/api`
 - Swagger UI path configured as `/api/docs`
 - Health check endpoint available at `/api/health`
