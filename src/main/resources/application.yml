@@ -51,6 +51,8 @@ management:
         include: health,info
 
 app:
+  cache:
+    key-prefix: ${CACHE_KEY_PREFIX:luckycolor-admin}
   security:
     jwt:
       secret: ${JWT_SECRET:replace-with-a-strong-secret-for-luckycolor-admin}

@@ -17,6 +17,7 @@ LuckyColor Admin backend rewrite based on Spring Boot.
 - Base application scaffold created from Spring Initializr
 - Persistence baseline switched to MyBatis-Plus
 - Multi-tenant baseline enabled with request header context, tenant SQL isolation, and audit auto-fill
+- Redis cache baseline added with JSON serialization and unified key prefix
 - Use `@TenantIgnore` on public-data flows when a method must bypass tenant SQL injection explicitly
 - Mapper interfaces should use `@Mapper` explicitly instead of wide-package scanning
 - Shared paging contracts are available via `PageQuery`, `PageResult`, and `BaseMapperX`
@@ -38,4 +39,10 @@ Enable Flyway migration when needed:
 ```powershell
 $env:FLYWAY_ENABLED="true"
 ./mvnw spring-boot:run
+```
+
+Default cache key prefix:
+
+```text
+luckycolor-admin:<namespace>:<segment...>
 ```
