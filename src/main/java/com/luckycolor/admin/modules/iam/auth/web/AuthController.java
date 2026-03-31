@@ -7,12 +7,15 @@ import com.luckycolor.admin.modules.iam.auth.config.LoginCaptchaProperties;
 import com.luckycolor.admin.modules.iam.auth.service.AuthService;
 import com.luckycolor.admin.modules.iam.auth.service.LoginCaptchaService;
 import com.luckycolor.admin.modules.iam.auth.web.request.AuthLoginRequest;
+import com.luckycolor.admin.modules.iam.auth.web.response.AuthAccessSnapshotResponse;
 import com.luckycolor.admin.modules.iam.auth.web.response.AuthLoginResponse;
 import com.luckycolor.admin.modules.iam.auth.web.response.AuthPermissionSnapshotResponse;
 import com.luckycolor.admin.modules.iam.auth.web.response.AuthProfileResponse;
+import com.luckycolor.admin.modules.iam.auth.web.response.AuthRouteResponse;
 import com.luckycolor.admin.modules.iam.auth.web.response.LoginCaptchaResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.lang.Nullable;
 import org.springframework.security.core.Authentication;
@@ -83,6 +86,16 @@ public class AuthController {
     @GetMapping("/auth/permissions")
     public ApiResponse<AuthPermissionSnapshotResponse> permissions(Authentication authentication) {
         return ApiResponse.success(authService.getPermissionSnapshot(getAuthenticatedUser(authentication)));
+    }
+
+    @GetMapping("/auth/routes")
+    public ApiResponse<List<AuthRouteResponse>> routes(Authentication authentication) {
+        return ApiResponse.success(authService.getRoutes(getAuthenticatedUser(authentication)));
+    }
+
+    @GetMapping("/auth/access")
+    public ApiResponse<AuthAccessSnapshotResponse> access(Authentication authentication) {
+        return ApiResponse.success(authService.getAccessSnapshot(getAuthenticatedUser(authentication)));
     }
 
     private JwtAuthenticatedUser getAuthenticatedUser(Authentication authentication) {

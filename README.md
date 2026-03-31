@@ -67,4 +67,6 @@ Current user endpoints:
 POST /api/auth/logout
 GET /api/auth/profile
 GET /api/auth/permissions
+GET /api/auth/routes
+GET /api/auth/access
 ```

@@ -5,16 +5,20 @@ import com.luckycolor.admin.infrastructure.security.jwt.JwtAuthenticatedUser;
 import com.luckycolor.admin.infrastructure.security.jwt.JwtTokenService;
 import com.luckycolor.admin.modules.iam.auth.config.LoginCaptchaProperties;
 import com.luckycolor.admin.modules.iam.auth.model.AuthUser;
+import com.luckycolor.admin.modules.iam.auth.service.AuthAccessRouteService;
 import com.luckycolor.admin.modules.iam.auth.service.AuthService;
 import com.luckycolor.admin.modules.iam.auth.service.LoginAuditService;
 import com.luckycolor.admin.modules.iam.auth.service.LoginCaptchaService;
 import com.luckycolor.admin.modules.iam.auth.service.AuthTokenSessionService;
 import com.luckycolor.admin.modules.iam.auth.service.AuthUserService;
 import com.luckycolor.admin.modules.iam.auth.web.request.AuthLoginRequest;
+import com.luckycolor.admin.modules.iam.auth.web.response.AuthAccessSnapshotResponse;
 import com.luckycolor.admin.modules.iam.auth.web.response.AuthLoginResponse;
 import com.luckycolor.admin.modules.iam.auth.web.response.AuthPermissionSnapshotResponse;
 import com.luckycolor.admin.modules.iam.auth.web.response.AuthProfileResponse;
+import com.luckycolor.admin.modules.iam.auth.web.response.AuthRouteResponse;
 import java.time.Instant;
+import java.util.List;
 import java.util.Objects;
 import org.springframework.http.HttpStatus;
 import org.springframework.lang.Nullable;
@@ -30,6 +34,7 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenService jwtTokenService;
     private final AuthTokenSessionService authTokenSessionService;
+    private final AuthAccessRouteService authAccessRouteService;
     private final SecurityJwtProperties securityJwtProperties;
     private final LoginCaptchaProperties loginCaptchaProperties;
     private final LoginAuditService loginAuditService;
@@ -40,6 +45,7 @@ public class AuthServiceImpl implements AuthService {
         PasswordEncoder passwordEncoder,
         JwtTokenService jwtTokenService,
         AuthTokenSessionService authTokenSessionService,
+        AuthAccessRouteService authAccessRouteService,
         SecurityJwtProperties securityJwtProperties,
         LoginCaptchaProperties loginCaptchaProperties,
         LoginAuditService loginAuditService,
@@ -49,6 +55,7 @@ public class AuthServiceImpl implements AuthService {
         this.passwordEncoder = passwordEncoder;
         this.jwtTokenService = jwtTokenService;
         this.authTokenSessionService = authTokenSessionService;
+        this.authAccessRouteService = authAccessRouteService;
         this.securityJwtProperties = securityJwtProperties;
         this.loginCaptchaProperties = loginCaptchaProperties;
         this.loginAuditService = loginAuditService;
@@ -125,6 +132,16 @@ public class AuthServiceImpl implements AuthService {
             user.roles(),
             user.permissions()
         );
+    }
+
+    @Override
+    public List<AuthRouteResponse> getRoutes(JwtAuthenticatedUser authenticatedUser) {
+        return authAccessRouteService.getAccessibleRoutes(getRequiredUser(authenticatedUser));
+    }
+
+    @Override
+    public AuthAccessSnapshotResponse getAccessSnapshot(JwtAuthenticatedUser authenticatedUser) {
+        return authAccessRouteService.getAccessSnapshot(getRequiredUser(authenticatedUser));
     }
 
     private void validateCaptchaIfNecessary(AuthLoginRequest request) {

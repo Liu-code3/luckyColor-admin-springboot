@@ -14,9 +14,11 @@ import com.luckycolor.admin.infrastructure.security.jwt.JwtTokenService;
 import com.luckycolor.admin.modules.iam.auth.config.LoginCaptchaProperties;
 import com.luckycolor.admin.modules.iam.auth.service.AuthService;
 import com.luckycolor.admin.modules.iam.auth.service.LoginCaptchaService;
+import com.luckycolor.admin.modules.iam.auth.web.response.AuthAccessSnapshotResponse;
 import com.luckycolor.admin.modules.iam.auth.web.response.AuthLoginResponse;
 import com.luckycolor.admin.modules.iam.auth.web.response.AuthPermissionSnapshotResponse;
 import com.luckycolor.admin.modules.iam.auth.web.response.AuthProfileResponse;
+import com.luckycolor.admin.modules.iam.auth.web.response.AuthRouteResponse;
 import com.luckycolor.admin.modules.iam.auth.web.response.LoginCaptchaResponse;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -132,6 +134,68 @@ class AuthControllerTest {
 
         assertThat(response).isTrue();
         Mockito.verify(authService).logout(any(), eq("jwt-token"), any());
+    }
+
+    @Test
+    void shouldReturnRoutes() {
+        AuthService authService = Mockito.mock(AuthService.class);
+        LoginCaptchaProperties loginCaptchaProperties = new LoginCaptchaProperties();
+        when(authService.getRoutes(any())).thenReturn(
+            List.of(
+                new AuthRouteResponse(
+                    "dashboard",
+                    "Dashboard",
+                    "/dashboard",
+                    "/dashboard",
+                    "dashboard/index",
+                    null,
+                    "dashboard",
+                    false,
+                    false,
+                    true,
+                    List.of(),
+                    List.of()
+                )
+            )
+        );
+        AuthController controller = new AuthController(
+            authService,
+            null,
+            loginCaptchaProperties,
+            Mockito.mock(JwtTokenService.class)
+        );
+
+        List<AuthRouteResponse> response = controller.routes(buildAuthentication()).data();
+
+        assertThat(response).hasSize(1);
+        assertThat(response.get(0).fullPath()).isEqualTo("/dashboard");
+    }
+
+    @Test
+    void shouldReturnAccessSnapshot() {
+        AuthService authService = Mockito.mock(AuthService.class);
+        LoginCaptchaProperties loginCaptchaProperties = new LoginCaptchaProperties();
+        when(authService.getAccessSnapshot(any())).thenReturn(
+            new AuthAccessSnapshotResponse(
+                1L,
+                1L,
+                List.of("ROLE_SUPER_ADMIN"),
+                List.of("system:user:query"),
+                List.of("dashboard", "system:user"),
+                "/dashboard"
+            )
+        );
+        AuthController controller = new AuthController(
+            authService,
+            null,
+            loginCaptchaProperties,
+            Mockito.mock(JwtTokenService.class)
+        );
+
+        AuthAccessSnapshotResponse response = controller.access(buildAuthentication()).data();
+
+        assertThat(response.routeCodes()).containsExactly("dashboard", "system:user");
+        assertThat(response.homePath()).isEqualTo("/dashboard");
     }
 
     private Authentication buildAuthentication() {

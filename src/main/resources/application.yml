@@ -70,6 +70,33 @@ app:
           permissions:
             - system:user:query
             - system:user:create
+    access:
+      routes:
+        - code: dashboard
+          name: Dashboard
+          path: /dashboard
+          component: dashboard/index
+          icon: dashboard
+          keep-alive: true
+        - code: system
+          name: System
+          path: /system
+          component: Layout
+          icon: setting
+          always-show: true
+          children:
+            - code: system:user
+              name: SystemUser
+              path: users
+              component: system/user/index
+              permissions:
+                - system:user:query
+            - code: system:role
+              name: SystemRole
+              path: roles
+              component: system/role/index
+              roles:
+                - ROLE_SUPER_ADMIN
   tenancy:
     enabled: ${TENANT_ENABLED:true}
     header: ${TENANT_HEADER:x-tenant-id}

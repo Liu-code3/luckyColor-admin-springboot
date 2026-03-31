@@ -10,15 +10,19 @@ import static org.mockito.Mockito.when;
 import com.luckycolor.admin.infrastructure.security.config.SecurityJwtProperties;
 import com.luckycolor.admin.infrastructure.security.jwt.JwtAuthenticatedUser;
 import com.luckycolor.admin.infrastructure.security.jwt.JwtTokenService;
+import com.luckycolor.admin.modules.iam.auth.config.AuthAccessProperties;
 import com.luckycolor.admin.modules.iam.auth.config.LocalAuthProperties;
 import com.luckycolor.admin.modules.iam.auth.config.LoginCaptchaProperties;
+import com.luckycolor.admin.modules.iam.auth.service.impl.AuthAccessRouteServiceImpl;
 import com.luckycolor.admin.modules.iam.auth.service.impl.AuthServiceImpl;
 import com.luckycolor.admin.modules.iam.auth.service.impl.InMemoryAuthTokenSessionService;
 import com.luckycolor.admin.modules.iam.auth.service.impl.LocalAuthUserServiceImpl;
+import com.luckycolor.admin.modules.iam.auth.web.response.AuthAccessSnapshotResponse;
 import com.luckycolor.admin.modules.iam.auth.web.request.AuthLoginRequest;
 import com.luckycolor.admin.modules.iam.auth.web.response.AuthLoginResponse;
 import com.luckycolor.admin.modules.iam.auth.web.response.AuthPermissionSnapshotResponse;
 import com.luckycolor.admin.modules.iam.auth.web.response.AuthProfileResponse;
+import com.luckycolor.admin.modules.iam.auth.web.response.AuthRouteResponse;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -41,6 +45,7 @@ class AuthServiceImplTest {
             passwordEncoder,
             jwtTokenService,
             new InMemoryAuthTokenSessionService(),
+            new AuthAccessRouteServiceImpl(buildAccessProperties()),
             buildJwtProperties(),
             buildCaptchaProperties(true),
             loginAuditService,
@@ -65,6 +70,7 @@ class AuthServiceImplTest {
             Mockito.mock(PasswordEncoder.class),
             Mockito.mock(JwtTokenService.class),
             new InMemoryAuthTokenSessionService(),
+            new AuthAccessRouteServiceImpl(buildAccessProperties()),
             buildJwtProperties(),
             buildCaptchaProperties(false),
             loginAuditService,
@@ -91,6 +97,7 @@ class AuthServiceImplTest {
             passwordEncoder,
             jwtTokenService,
             new InMemoryAuthTokenSessionService(),
+            new AuthAccessRouteServiceImpl(buildAccessProperties()),
             buildJwtProperties(),
             buildCaptchaProperties(false),
             loginAuditService,
@@ -114,6 +121,7 @@ class AuthServiceImplTest {
             Mockito.mock(PasswordEncoder.class),
             Mockito.mock(JwtTokenService.class),
             new InMemoryAuthTokenSessionService(),
+            new AuthAccessRouteServiceImpl(buildAccessProperties()),
             buildJwtProperties(),
             buildCaptchaProperties(false),
             loginAuditService,
@@ -134,6 +142,7 @@ class AuthServiceImplTest {
             Mockito.mock(PasswordEncoder.class),
             Mockito.mock(JwtTokenService.class),
             new InMemoryAuthTokenSessionService(),
+            new AuthAccessRouteServiceImpl(buildAccessProperties()),
             buildJwtProperties(),
             buildCaptchaProperties(true),
             Mockito.mock(LoginAuditService.class),
@@ -156,6 +165,7 @@ class AuthServiceImplTest {
             Mockito.mock(PasswordEncoder.class),
             jwtTokenService,
             tokenSessionService,
+            new AuthAccessRouteServiceImpl(buildAccessProperties()),
             buildJwtProperties(),
             buildCaptchaProperties(false),
             loginAuditService,
@@ -175,6 +185,7 @@ class AuthServiceImplTest {
             Mockito.mock(PasswordEncoder.class),
             Mockito.mock(JwtTokenService.class),
             new InMemoryAuthTokenSessionService(),
+            new AuthAccessRouteServiceImpl(buildAccessProperties()),
             buildJwtProperties(),
             buildCaptchaProperties(false),
             Mockito.mock(LoginAuditService.class),
@@ -197,6 +208,7 @@ class AuthServiceImplTest {
             Mockito.mock(PasswordEncoder.class),
             Mockito.mock(JwtTokenService.class),
             new InMemoryAuthTokenSessionService(),
+            new AuthAccessRouteServiceImpl(buildAccessProperties()),
             buildJwtProperties(),
             buildCaptchaProperties(false),
             Mockito.mock(LoginAuditService.class),
@@ -209,6 +221,58 @@ class AuthServiceImplTest {
 
         assertThat(response.roles()).containsExactly("ROLE_SUPER_ADMIN");
         assertThat(response.permissions()).containsExactly("system:user:query", "system:user:create");
+    }
+
+    @Test
+    void shouldReturnAccessibleRoutes() {
+        AuthService authService = new AuthServiceImpl(
+            new LocalAuthUserServiceImpl(buildAuthProperties("admin123", 0)),
+            Mockito.mock(PasswordEncoder.class),
+            Mockito.mock(JwtTokenService.class),
+            new InMemoryAuthTokenSessionService(),
+            new AuthAccessRouteServiceImpl(buildAccessProperties()),
+            buildJwtProperties(),
+            buildCaptchaProperties(false),
+            Mockito.mock(LoginAuditService.class),
+            null
+        );
+
+        List<AuthRouteResponse> response = authService.getRoutes(
+            new JwtAuthenticatedUser(1L, "admin", 1L, List.of("ROLE_SUPER_ADMIN"))
+        );
+
+        assertThat(response).hasSize(2);
+        assertThat(response.get(0).code()).isEqualTo("dashboard");
+        assertThat(response.get(0).fullPath()).isEqualTo("/dashboard");
+        assertThat(response.get(1).code()).isEqualTo("system");
+        assertThat(response.get(1).children()).extracting(AuthRouteResponse::code)
+            .containsExactly("system:user", "system:role");
+        assertThat(response.get(1).children()).extracting(AuthRouteResponse::fullPath)
+            .containsExactly("/system/users", "/system/roles");
+    }
+
+    @Test
+    void shouldReturnAccessSnapshot() {
+        AuthService authService = new AuthServiceImpl(
+            new LocalAuthUserServiceImpl(buildAuthProperties("admin123", 0)),
+            Mockito.mock(PasswordEncoder.class),
+            Mockito.mock(JwtTokenService.class),
+            new InMemoryAuthTokenSessionService(),
+            new AuthAccessRouteServiceImpl(buildAccessProperties()),
+            buildJwtProperties(),
+            buildCaptchaProperties(false),
+            Mockito.mock(LoginAuditService.class),
+            null
+        );
+
+        AuthAccessSnapshotResponse response = authService.getAccessSnapshot(
+            new JwtAuthenticatedUser(1L, "admin", 1L, List.of("ROLE_SUPER_ADMIN"))
+        );
+
+        assertThat(response.roles()).containsExactly("ROLE_SUPER_ADMIN");
+        assertThat(response.permissions()).containsExactly("system:user:query", "system:user:create");
+        assertThat(response.routeCodes()).containsExactly("dashboard", "system", "system:user", "system:role");
+        assertThat(response.homePath()).isEqualTo("/dashboard");
     }
 
     private LocalAuthProperties buildAuthProperties(String password, int status) {
@@ -235,6 +299,46 @@ class AuthServiceImplTest {
     private LoginCaptchaProperties buildCaptchaProperties(boolean enabled) {
         LoginCaptchaProperties properties = new LoginCaptchaProperties();
         properties.setEnabled(enabled);
+        return properties;
+    }
+
+    private AuthAccessProperties buildAccessProperties() {
+        AuthAccessProperties properties = new AuthAccessProperties();
+        AuthAccessProperties.Route dashboard = new AuthAccessProperties.Route();
+        dashboard.setCode("dashboard");
+        dashboard.setName("Dashboard");
+        dashboard.setPath("/dashboard");
+        dashboard.setComponent("dashboard/index");
+
+        AuthAccessProperties.Route system = new AuthAccessProperties.Route();
+        system.setCode("system");
+        system.setName("System");
+        system.setPath("/system");
+        system.setComponent("Layout");
+
+        AuthAccessProperties.Route userRoute = new AuthAccessProperties.Route();
+        userRoute.setCode("system:user");
+        userRoute.setName("SystemUser");
+        userRoute.setPath("users");
+        userRoute.setComponent("system/user/index");
+        userRoute.setPermissions(List.of("system:user:query"));
+
+        AuthAccessProperties.Route roleRoute = new AuthAccessProperties.Route();
+        roleRoute.setCode("system:role");
+        roleRoute.setName("SystemRole");
+        roleRoute.setPath("roles");
+        roleRoute.setComponent("system/role/index");
+        roleRoute.setRoles(List.of("ROLE_SUPER_ADMIN"));
+
+        AuthAccessProperties.Route tenantRoute = new AuthAccessProperties.Route();
+        tenantRoute.setCode("tenant:list");
+        tenantRoute.setName("TenantList");
+        tenantRoute.setPath("/tenants");
+        tenantRoute.setComponent("tenant/index");
+        tenantRoute.setPermissions(List.of("tenant:query"));
+
+        system.setChildren(List.of(userRoute, roleRoute));
+        properties.setRoutes(List.of(dashboard, system, tenantRoute));
         return properties;
     }
 
