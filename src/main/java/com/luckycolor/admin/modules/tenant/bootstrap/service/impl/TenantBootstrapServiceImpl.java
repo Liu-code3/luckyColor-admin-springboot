@@ -2,6 +2,7 @@ package com.luckycolor.admin.modules.tenant.bootstrap.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.luckycolor.admin.common.page.PageResult;
+import com.luckycolor.admin.infrastructure.security.datascope.DataScopeConditionBuilder;
 import com.luckycolor.admin.infrastructure.tenant.annotation.TenantIgnore;
 import com.luckycolor.admin.modules.tenant.audit.service.TenantAuditLogService;
 import com.luckycolor.admin.modules.tenant.bootstrap.config.TenantBootstrapProperties;
@@ -34,17 +35,20 @@ public class TenantBootstrapServiceImpl implements TenantBootstrapService {
     private final TenantBootstrapRecordMapper tenantBootstrapRecordMapper;
     private final TenantAuditLogService tenantAuditLogService;
     private final TenantBootstrapProperties tenantBootstrapProperties;
+    private final DataScopeConditionBuilder dataScopeConditionBuilder;
 
     public TenantBootstrapServiceImpl(
         TenantMapper tenantMapper,
         TenantBootstrapRecordMapper tenantBootstrapRecordMapper,
         TenantAuditLogService tenantAuditLogService,
-        TenantBootstrapProperties tenantBootstrapProperties
+        TenantBootstrapProperties tenantBootstrapProperties,
+        DataScopeConditionBuilder dataScopeConditionBuilder
     ) {
         this.tenantMapper = tenantMapper;
         this.tenantBootstrapRecordMapper = tenantBootstrapRecordMapper;
         this.tenantAuditLogService = tenantAuditLogService;
         this.tenantBootstrapProperties = tenantBootstrapProperties;
+        this.dataScopeConditionBuilder = dataScopeConditionBuilder;
     }
 
     @Override
@@ -94,6 +98,7 @@ public class TenantBootstrapServiceImpl implements TenantBootstrapService {
             query.getTemplateCode()
         );
         queryWrapper.eq(query.getStatus() != null, TenantBootstrapRecordDO::getStatus, query.getStatus());
+        dataScopeConditionBuilder.applyCurrentScope(queryWrapper, TenantBootstrapRecordDO::getTenantId, null);
         queryWrapper.orderByDesc(TenantBootstrapRecordDO::getBootstrapTime)
             .orderByDesc(TenantBootstrapRecordDO::getCreateTime);
         return queryWrapper;

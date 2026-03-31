@@ -65,6 +65,7 @@ app:
           tenant-id: 1
           nickname: System Admin
           status: 0
+          data-scope: ALL
           roles:
             - ROLE_SUPER_ADMIN
           permissions:
@@ -76,6 +77,24 @@ app:
             - tenant:package:query
             - tenant:package:create
             - tenant:package:update
+        - user-id: 2
+          username: tenant-operator
+          password: ${TENANT_OPERATOR_PASSWORD:operator123}
+          tenant-id: 1
+          nickname: Tenant Operator
+          status: 0
+          data-scope: CUSTOM
+          scope-tenant-ids:
+            - 1
+          department-id: 100
+          department-ids:
+            - 100
+            - 101
+          roles:
+            - ROLE_TENANT_OPERATOR
+          permissions:
+            - tenant:query
+            - tenant:package:query
     access:
       routes:
         - code: dashboard

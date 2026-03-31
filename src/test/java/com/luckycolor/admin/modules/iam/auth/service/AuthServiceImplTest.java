@@ -286,6 +286,7 @@ class AuthServiceImplTest {
         user.setStatus(status);
         user.setRoles(List.of("ROLE_SUPER_ADMIN"));
         user.setPermissions(List.of("system:user:query", "system:user:create"));
+        user.setDataScope("ALL");
         properties.setLocalUsers(List.of(user));
         return properties;
     }

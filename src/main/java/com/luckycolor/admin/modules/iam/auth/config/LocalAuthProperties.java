@@ -32,5 +32,13 @@ public class LocalAuthProperties {
         private List<String> roles = new ArrayList<>();
 
         private List<String> permissions = new ArrayList<>();
+
+        private String dataScope = "TENANT";
+
+        private Long departmentId;
+
+        private List<Long> departmentIds = new ArrayList<>();
+
+        private List<Long> scopeTenantIds = new ArrayList<>();
     }
 }

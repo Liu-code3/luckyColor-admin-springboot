@@ -50,11 +50,19 @@ public class LocalAuthUserServiceImpl implements AuthUserService {
             user.getNickname(),
             user.getStatus(),
             safeList(user.getRoles()),
-            safeList(user.getPermissions())
+            safeList(user.getPermissions()),
+            user.getDataScope(),
+            user.getDepartmentId(),
+            safeLongList(user.getDepartmentIds()),
+            safeLongList(user.getScopeTenantIds())
         );
     }
 
     private List<String> safeList(List<String> values) {
+        return values == null ? List.of() : values;
+    }
+
+    private List<Long> safeLongList(List<Long> values) {
         return values == null ? List.of() : values;
     }
 }

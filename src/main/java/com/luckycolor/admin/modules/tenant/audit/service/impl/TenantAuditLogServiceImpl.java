@@ -2,6 +2,7 @@ package com.luckycolor.admin.modules.tenant.audit.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.luckycolor.admin.common.page.PageResult;
+import com.luckycolor.admin.infrastructure.security.datascope.DataScopeConditionBuilder;
 import com.luckycolor.admin.infrastructure.tenant.annotation.TenantIgnore;
 import com.luckycolor.admin.modules.tenant.audit.dataobject.TenantAuditLogDO;
 import com.luckycolor.admin.modules.tenant.audit.mapper.TenantAuditLogMapper;
@@ -18,9 +19,14 @@ import org.springframework.util.StringUtils;
 public class TenantAuditLogServiceImpl implements TenantAuditLogService {
 
     private final TenantAuditLogMapper tenantAuditLogMapper;
+    private final DataScopeConditionBuilder dataScopeConditionBuilder;
 
-    public TenantAuditLogServiceImpl(TenantAuditLogMapper tenantAuditLogMapper) {
+    public TenantAuditLogServiceImpl(
+        TenantAuditLogMapper tenantAuditLogMapper,
+        DataScopeConditionBuilder dataScopeConditionBuilder
+    ) {
         this.tenantAuditLogMapper = tenantAuditLogMapper;
+        this.dataScopeConditionBuilder = dataScopeConditionBuilder;
     }
 
     @Override
@@ -48,6 +54,7 @@ public class TenantAuditLogServiceImpl implements TenantAuditLogService {
         queryWrapper.eq(query.getTenantId() != null, TenantAuditLogDO::getTenantId, query.getTenantId());
         queryWrapper.eq(StringUtils.hasText(query.getTargetType()), TenantAuditLogDO::getTargetType, query.getTargetType());
         queryWrapper.eq(StringUtils.hasText(query.getAction()), TenantAuditLogDO::getAction, query.getAction());
+        dataScopeConditionBuilder.applyCurrentScope(queryWrapper, TenantAuditLogDO::getTenantId, null);
         queryWrapper.orderByDesc(TenantAuditLogDO::getCreateTime);
         return queryWrapper;
     }

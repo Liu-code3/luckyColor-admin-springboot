@@ -5,7 +5,13 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.luckycolor.admin.common.page.PageResult;
+import com.luckycolor.admin.infrastructure.security.datascope.CurrentDataScopeResolver;
+import com.luckycolor.admin.infrastructure.security.datascope.DataScopeConditionBuilder;
+import com.luckycolor.admin.infrastructure.security.datascope.DataScopeRule;
+import com.luckycolor.admin.infrastructure.security.datascope.DataScopeType;
 import com.luckycolor.admin.modules.tenant.audit.service.TenantAuditLogService;
 import com.luckycolor.admin.modules.tenant.tenant.dataobject.TenantDO;
 import com.luckycolor.admin.modules.tenant.tenant.mapper.TenantMapper;
@@ -16,9 +22,11 @@ import com.luckycolor.admin.modules.tenant.tenant.web.request.TenantSaveRequest;
 import com.luckycolor.admin.modules.tenant.tenant.web.request.TenantStatusRequest;
 import com.luckycolor.admin.modules.tenant.tenant.web.response.TenantDetailResponse;
 import com.luckycolor.admin.modules.tenant.tenant.web.response.TenantPageResponse;
+import com.luckycolor.admin.support.MyBatisTableInfoTestUtils;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
 class TenantServiceImplTest {
@@ -27,7 +35,7 @@ class TenantServiceImplTest {
     void shouldConvertTenantPageResult() {
         TenantMapper mapper = Mockito.mock(TenantMapper.class);
         TenantAuditLogService auditLogService = Mockito.mock(TenantAuditLogService.class);
-        TenantService service = new TenantServiceImpl(mapper, auditLogService);
+        TenantService service = new TenantServiceImpl(mapper, auditLogService, noScopeBuilder());
         TenantDO tenant = new TenantDO();
         tenant.setId(1L);
         tenant.setName("Lucky Color");
@@ -49,7 +57,7 @@ class TenantServiceImplTest {
     void shouldReturnTenantDetail() {
         TenantMapper mapper = Mockito.mock(TenantMapper.class);
         TenantAuditLogService auditLogService = Mockito.mock(TenantAuditLogService.class);
-        TenantService service = new TenantServiceImpl(mapper, auditLogService);
+        TenantService service = new TenantServiceImpl(mapper, auditLogService, noScopeBuilder());
         TenantDO tenant = buildTenant();
         when(mapper.selectById(1L)).thenReturn(tenant);
 
@@ -62,7 +70,7 @@ class TenantServiceImplTest {
     void shouldCreateTenant() {
         TenantMapper mapper = Mockito.mock(TenantMapper.class);
         TenantAuditLogService auditLogService = Mockito.mock(TenantAuditLogService.class);
-        TenantService service = new TenantServiceImpl(mapper, auditLogService);
+        TenantService service = new TenantServiceImpl(mapper, auditLogService, noScopeBuilder());
         TenantSaveRequest request = buildSaveRequest();
         when(mapper.insert(any(TenantDO.class))).thenAnswer(invocation -> {
             TenantDO tenant = invocation.getArgument(0);
@@ -79,7 +87,7 @@ class TenantServiceImplTest {
     void shouldUpdateTenantStatus() {
         TenantMapper mapper = Mockito.mock(TenantMapper.class);
         TenantAuditLogService auditLogService = Mockito.mock(TenantAuditLogService.class);
-        TenantService service = new TenantServiceImpl(mapper, auditLogService);
+        TenantService service = new TenantServiceImpl(mapper, auditLogService, noScopeBuilder());
         TenantDO tenant = buildTenant();
         when(mapper.selectById(1L)).thenReturn(tenant);
         when(mapper.updateById(any(TenantDO.class))).thenReturn(1);
@@ -97,7 +105,7 @@ class TenantServiceImplTest {
     void shouldUpdateTenantExpireTime() {
         TenantMapper mapper = Mockito.mock(TenantMapper.class);
         TenantAuditLogService auditLogService = Mockito.mock(TenantAuditLogService.class);
-        TenantService service = new TenantServiceImpl(mapper, auditLogService);
+        TenantService service = new TenantServiceImpl(mapper, auditLogService, noScopeBuilder());
         TenantDO tenant = buildTenant();
         when(mapper.selectById(1L)).thenReturn(tenant);
         when(mapper.updateById(any(TenantDO.class))).thenReturn(1);
@@ -107,6 +115,41 @@ class TenantServiceImplTest {
         service.updateTenantExpireTime(1L, request);
 
         assertThat(tenant.getExpireTime()).isEqualTo(LocalDateTime.of(2027, 1, 1, 0, 0));
+    }
+
+    @Test
+    void shouldAppendDataScopeToTenantPageQuery() {
+        MyBatisTableInfoTestUtils.initTableInfo(TenantDO.class);
+        TenantMapper mapper = Mockito.mock(TenantMapper.class);
+        TenantAuditLogService auditLogService = Mockito.mock(TenantAuditLogService.class);
+        TenantService service = new TenantServiceImpl(
+            mapper,
+            auditLogService,
+            tenantScopeBuilder(1L)
+        );
+        when(mapper.selectPageResult(any(), any())).thenReturn(PageResult.of(List.of(), 0L));
+
+        service.pageTenants(new TenantPageQuery());
+
+        ArgumentCaptor<Wrapper<TenantDO>> wrapperCaptor = ArgumentCaptor.forClass(Wrapper.class);
+        Mockito.verify(mapper).selectPageResult(any(), wrapperCaptor.capture());
+        LambdaQueryWrapper<TenantDO> wrapper = (LambdaQueryWrapper<TenantDO>) wrapperCaptor.getValue();
+        assertThat(wrapper.getSqlSegment()).contains("id");
+        assertThat(wrapper.getParamNameValuePairs()).containsValue(1L);
+    }
+
+    private DataScopeConditionBuilder noScopeBuilder() {
+        CurrentDataScopeResolver resolver = Mockito.mock(CurrentDataScopeResolver.class);
+        when(resolver.resolveCurrentRule()).thenReturn(java.util.Optional.empty());
+        return new DataScopeConditionBuilder(resolver);
+    }
+
+    private DataScopeConditionBuilder tenantScopeBuilder(Long tenantId) {
+        CurrentDataScopeResolver resolver = Mockito.mock(CurrentDataScopeResolver.class);
+        when(resolver.resolveCurrentRule()).thenReturn(
+            java.util.Optional.of(new DataScopeRule(DataScopeType.TENANT, tenantId, null, List.of(tenantId), List.of()))
+        );
+        return new DataScopeConditionBuilder(resolver);
     }
 
     private TenantDO buildTenant() {

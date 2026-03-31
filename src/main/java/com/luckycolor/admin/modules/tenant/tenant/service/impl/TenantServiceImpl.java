@@ -2,6 +2,7 @@ package com.luckycolor.admin.modules.tenant.tenant.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.luckycolor.admin.common.page.PageResult;
+import com.luckycolor.admin.infrastructure.security.datascope.DataScopeConditionBuilder;
 import com.luckycolor.admin.infrastructure.tenant.annotation.TenantIgnore;
 import com.luckycolor.admin.modules.tenant.audit.service.TenantAuditLogService;
 import com.luckycolor.admin.modules.tenant.tenant.dataobject.TenantDO;
@@ -26,10 +27,16 @@ public class TenantServiceImpl implements TenantService {
 
     private final TenantMapper tenantMapper;
     private final TenantAuditLogService tenantAuditLogService;
+    private final DataScopeConditionBuilder dataScopeConditionBuilder;
 
-    public TenantServiceImpl(TenantMapper tenantMapper, TenantAuditLogService tenantAuditLogService) {
+    public TenantServiceImpl(
+        TenantMapper tenantMapper,
+        TenantAuditLogService tenantAuditLogService,
+        DataScopeConditionBuilder dataScopeConditionBuilder
+    ) {
         this.tenantMapper = tenantMapper;
         this.tenantAuditLogService = tenantAuditLogService;
+        this.dataScopeConditionBuilder = dataScopeConditionBuilder;
     }
 
     @Override
@@ -84,6 +91,7 @@ public class TenantServiceImpl implements TenantService {
         queryWrapper.like(StringUtils.hasText(query.getName()), TenantDO::getName, query.getName());
         queryWrapper.eq(query.getPackageId() != null, TenantDO::getPackageId, query.getPackageId());
         queryWrapper.eq(query.getStatus() != null, TenantDO::getStatus, query.getStatus());
+        dataScopeConditionBuilder.applyCurrentScope(queryWrapper, TenantDO::getId, null);
         queryWrapper.orderByDesc(TenantDO::getCreateTime);
         return queryWrapper;
     }

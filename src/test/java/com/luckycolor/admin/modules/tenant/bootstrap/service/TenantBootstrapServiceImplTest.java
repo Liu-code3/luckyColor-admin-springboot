@@ -5,7 +5,13 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.luckycolor.admin.common.page.PageResult;
+import com.luckycolor.admin.infrastructure.security.datascope.CurrentDataScopeResolver;
+import com.luckycolor.admin.infrastructure.security.datascope.DataScopeConditionBuilder;
+import com.luckycolor.admin.infrastructure.security.datascope.DataScopeRule;
+import com.luckycolor.admin.infrastructure.security.datascope.DataScopeType;
 import com.luckycolor.admin.modules.tenant.audit.service.TenantAuditLogService;
 import com.luckycolor.admin.modules.tenant.bootstrap.config.TenantBootstrapProperties;
 import com.luckycolor.admin.modules.tenant.bootstrap.dataobject.TenantBootstrapRecordDO;
@@ -15,11 +21,13 @@ import com.luckycolor.admin.modules.tenant.bootstrap.web.request.TenantBootstrap
 import com.luckycolor.admin.modules.tenant.bootstrap.web.request.TenantBootstrapRecordPageQuery;
 import com.luckycolor.admin.modules.tenant.bootstrap.web.response.TenantBootstrapRecordResponse;
 import com.luckycolor.admin.modules.tenant.bootstrap.web.response.TenantBootstrapTemplateResponse;
+import com.luckycolor.admin.support.MyBatisTableInfoTestUtils;
 import com.luckycolor.admin.modules.tenant.tenant.dataobject.TenantDO;
 import com.luckycolor.admin.modules.tenant.tenant.mapper.TenantMapper;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -31,7 +39,8 @@ class TenantBootstrapServiceImplTest {
             Mockito.mock(TenantMapper.class),
             Mockito.mock(TenantBootstrapRecordMapper.class),
             Mockito.mock(TenantAuditLogService.class),
-            buildProperties()
+            buildProperties(),
+            noScopeBuilder()
         );
 
         List<TenantBootstrapTemplateResponse> result = service.listTemplates();
@@ -60,7 +69,8 @@ class TenantBootstrapServiceImplTest {
             tenantMapper,
             recordMapper,
             auditLogService,
-            buildProperties()
+            buildProperties(),
+            noScopeBuilder()
         );
         TenantBootstrapExecuteRequest request = new TenantBootstrapExecuteRequest();
         request.setTemplateCode("default");
@@ -86,7 +96,8 @@ class TenantBootstrapServiceImplTest {
             tenantMapper,
             recordMapper,
             Mockito.mock(TenantAuditLogService.class),
-            buildProperties()
+            buildProperties(),
+            noScopeBuilder()
         );
         TenantBootstrapExecuteRequest request = new TenantBootstrapExecuteRequest();
         request.setTemplateCode("default");
@@ -116,7 +127,8 @@ class TenantBootstrapServiceImplTest {
             tenantMapper,
             recordMapper,
             Mockito.mock(TenantAuditLogService.class),
-            buildProperties()
+            buildProperties(),
+            noScopeBuilder()
         );
 
         PageResult<TenantBootstrapRecordResponse> result = service.pageRecords(new TenantBootstrapRecordPageQuery());
@@ -124,6 +136,29 @@ class TenantBootstrapServiceImplTest {
         assertThat(result.getTotal()).isEqualTo(1L);
         assertThat(result.getList().get(0).templateCode()).isEqualTo("default");
         assertThat(result.getList().get(0).roleCodes()).containsExactly("tenant_admin", "tenant_member");
+    }
+
+    @Test
+    void shouldAppendTenantDataScopeToBootstrapPageQuery() {
+        MyBatisTableInfoTestUtils.initTableInfo(TenantBootstrapRecordDO.class);
+        TenantMapper tenantMapper = Mockito.mock(TenantMapper.class);
+        TenantBootstrapRecordMapper recordMapper = Mockito.mock(TenantBootstrapRecordMapper.class);
+        when(recordMapper.selectPageResult(any(), any())).thenReturn(PageResult.of(List.of(), 0L));
+        TenantBootstrapService service = new TenantBootstrapServiceImpl(
+            tenantMapper,
+            recordMapper,
+            Mockito.mock(TenantAuditLogService.class),
+            buildProperties(),
+            tenantScopeBuilder(1L)
+        );
+
+        service.pageRecords(new TenantBootstrapRecordPageQuery());
+
+        ArgumentCaptor<Wrapper<TenantBootstrapRecordDO>> wrapperCaptor = ArgumentCaptor.forClass(Wrapper.class);
+        Mockito.verify(recordMapper).selectPageResult(any(), wrapperCaptor.capture());
+        LambdaQueryWrapper<TenantBootstrapRecordDO> wrapper = (LambdaQueryWrapper<TenantBootstrapRecordDO>) wrapperCaptor.getValue();
+        assertThat(wrapper.getSqlSegment()).contains("tenant_id");
+        assertThat(wrapper.getParamNameValuePairs()).containsValue(1L);
     }
 
     private TenantBootstrapProperties buildProperties() {
@@ -139,5 +174,19 @@ class TenantBootstrapServiceImplTest {
         template.setRemark("内置初始化模板");
         properties.setTemplates(List.of(template));
         return properties;
+    }
+
+    private DataScopeConditionBuilder noScopeBuilder() {
+        CurrentDataScopeResolver resolver = Mockito.mock(CurrentDataScopeResolver.class);
+        when(resolver.resolveCurrentRule()).thenReturn(java.util.Optional.empty());
+        return new DataScopeConditionBuilder(resolver);
+    }
+
+    private DataScopeConditionBuilder tenantScopeBuilder(Long tenantId) {
+        CurrentDataScopeResolver resolver = Mockito.mock(CurrentDataScopeResolver.class);
+        when(resolver.resolveCurrentRule()).thenReturn(
+            java.util.Optional.of(new DataScopeRule(DataScopeType.TENANT, tenantId, null, List.of(tenantId), List.of()))
+        );
+        return new DataScopeConditionBuilder(resolver);
     }
 }
