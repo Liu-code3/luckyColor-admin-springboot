@@ -1,6 +1,7 @@
 package com.luckycolor.admin.modules.system.dictionary.item.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.luckycolor.admin.modules.system.dictionary.cache.service.DictionaryCatalogCacheService;
 import com.luckycolor.admin.infrastructure.security.datascope.DataScopeConditionBuilder;
 import com.luckycolor.admin.modules.system.dictionary.item.dataobject.DictionaryItemDO;
 import com.luckycolor.admin.modules.system.dictionary.item.mapper.DictionaryItemMapper;
@@ -26,15 +27,18 @@ public class DictionaryItemServiceImpl implements DictionaryItemService {
     private final DictionaryItemMapper dictionaryItemMapper;
     private final DictionaryTypeMapper dictionaryTypeMapper;
     private final DataScopeConditionBuilder dataScopeConditionBuilder;
+    private final DictionaryCatalogCacheService dictionaryCatalogCacheService;
 
     public DictionaryItemServiceImpl(
         DictionaryItemMapper dictionaryItemMapper,
         DictionaryTypeMapper dictionaryTypeMapper,
-        DataScopeConditionBuilder dataScopeConditionBuilder
+        DataScopeConditionBuilder dataScopeConditionBuilder,
+        DictionaryCatalogCacheService dictionaryCatalogCacheService
     ) {
         this.dictionaryItemMapper = dictionaryItemMapper;
         this.dictionaryTypeMapper = dictionaryTypeMapper;
         this.dataScopeConditionBuilder = dataScopeConditionBuilder;
+        this.dictionaryCatalogCacheService = dictionaryCatalogCacheService;
     }
 
     @Override
@@ -59,23 +63,26 @@ public class DictionaryItemServiceImpl implements DictionaryItemService {
         DictionaryItemDO dictionaryItem = new DictionaryItemDO();
         fillDictionaryItem(dictionaryItem, request);
         dictionaryItemMapper.insert(dictionaryItem);
+        dictionaryCatalogCacheService.evict(List.of(dictionaryItem.getTypeCode()));
         return dictionaryItem.getId();
     }
 
     @Override
     public void updateDictionaryItem(Long id, DictionaryItemSaveRequest request) {
         DictionaryItemDO dictionaryItem = getRequiredDictionaryItem(id);
+        String originalTypeCode = dictionaryItem.getTypeCode();
         validateDictionaryTypeExists(request.getTypeCode());
         validateParentExists(request.getTypeCode(), request.getParentId());
         ensureParentValid(id, request.getParentId(), request.getTypeCode());
         ensureItemValueUnique(id, request.getTypeCode(), request.getItemValue());
         fillDictionaryItem(dictionaryItem, request);
         dictionaryItemMapper.updateById(dictionaryItem);
+        dictionaryCatalogCacheService.evict(List.of(originalTypeCode, dictionaryItem.getTypeCode()));
     }
 
     @Override
     public void deleteDictionaryItem(Long id) {
-        getRequiredDictionaryItem(id);
+        DictionaryItemDO dictionaryItem = getRequiredDictionaryItem(id);
         LambdaQueryWrapper<DictionaryItemDO> childQuery = new LambdaQueryWrapper<>();
         childQuery.eq(DictionaryItemDO::getParentId, id);
         Long childCount = dictionaryItemMapper.selectCount(childQuery);
@@ -83,6 +90,7 @@ public class DictionaryItemServiceImpl implements DictionaryItemService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Dictionary item has children and cannot be deleted");
         }
         dictionaryItemMapper.deleteById(id);
+        dictionaryCatalogCacheService.evict(List.of(dictionaryItem.getTypeCode()));
     }
 
     private LambdaQueryWrapper<DictionaryItemDO> buildQueryWrapper(DictionaryItemTreeQuery query) {

@@ -3,6 +3,7 @@ package com.luckycolor.admin.modules.system.dictionary.type.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.luckycolor.admin.common.page.PageResult;
 import com.luckycolor.admin.infrastructure.security.datascope.DataScopeConditionBuilder;
+import com.luckycolor.admin.modules.system.dictionary.cache.service.DictionaryCatalogCacheService;
 import com.luckycolor.admin.modules.system.dictionary.item.dataobject.DictionaryItemDO;
 import com.luckycolor.admin.modules.system.dictionary.item.mapper.DictionaryItemMapper;
 import com.luckycolor.admin.modules.system.dictionary.type.dataobject.DictionaryTypeDO;
@@ -26,15 +27,18 @@ public class DictionaryTypeServiceImpl implements DictionaryTypeService {
     private final DictionaryTypeMapper dictionaryTypeMapper;
     private final DataScopeConditionBuilder dataScopeConditionBuilder;
     private final DictionaryItemMapper dictionaryItemMapper;
+    private final DictionaryCatalogCacheService dictionaryCatalogCacheService;
 
     public DictionaryTypeServiceImpl(
         DictionaryTypeMapper dictionaryTypeMapper,
         DataScopeConditionBuilder dataScopeConditionBuilder,
-        DictionaryItemMapper dictionaryItemMapper
+        DictionaryItemMapper dictionaryItemMapper,
+        DictionaryCatalogCacheService dictionaryCatalogCacheService
     ) {
         this.dictionaryTypeMapper = dictionaryTypeMapper;
         this.dataScopeConditionBuilder = dataScopeConditionBuilder;
         this.dictionaryItemMapper = dictionaryItemMapper;
+        this.dictionaryCatalogCacheService = dictionaryCatalogCacheService;
     }
 
     @Override
@@ -54,6 +58,7 @@ public class DictionaryTypeServiceImpl implements DictionaryTypeService {
         DictionaryTypeDO dictionaryType = new DictionaryTypeDO();
         fillDictionaryType(dictionaryType, request);
         dictionaryTypeMapper.insert(dictionaryType);
+        dictionaryCatalogCacheService.evict(List.of(dictionaryType.getTypeCode()));
         return dictionaryType.getId();
     }
 
@@ -65,6 +70,7 @@ public class DictionaryTypeServiceImpl implements DictionaryTypeService {
         fillDictionaryType(dictionaryType, request);
         dictionaryTypeMapper.updateById(dictionaryType);
         syncItemTypeCode(originalTypeCode, dictionaryType.getTypeCode());
+        dictionaryCatalogCacheService.evict(List.of(originalTypeCode, dictionaryType.getTypeCode()));
     }
 
     @Override
@@ -77,6 +83,7 @@ public class DictionaryTypeServiceImpl implements DictionaryTypeService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Dictionary type has items and cannot be deleted");
         }
         dictionaryTypeMapper.deleteById(id);
+        dictionaryCatalogCacheService.evict(List.of(dictionaryType.getTypeCode()));
     }
 
     private LambdaQueryWrapper<DictionaryTypeDO> buildQueryWrapper(DictionaryTypePageQuery query) {

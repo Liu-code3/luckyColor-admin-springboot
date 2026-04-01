@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 
 import com.luckycolor.admin.infrastructure.security.datascope.CurrentDataScopeResolver;
 import com.luckycolor.admin.infrastructure.security.datascope.DataScopeConditionBuilder;
+import com.luckycolor.admin.modules.system.dictionary.cache.service.DictionaryCatalogCacheService;
 import com.luckycolor.admin.modules.system.dictionary.item.dataobject.DictionaryItemDO;
 import com.luckycolor.admin.modules.system.dictionary.item.mapper.DictionaryItemMapper;
 import com.luckycolor.admin.modules.system.dictionary.item.service.impl.DictionaryItemServiceImpl;
@@ -33,7 +34,7 @@ class DictionaryItemServiceImplTest {
             item(1L, 0L, "Status", "root", 1),
             item(3L, 1L, "Enabled", "0", 1)
         ));
-        DictionaryItemService service = new DictionaryItemServiceImpl(mapper, typeMapper(), noScopeBuilder());
+        DictionaryItemService service = new DictionaryItemServiceImpl(mapper, typeMapper(), noScopeBuilder(), cacheService());
         DictionaryItemTreeQuery query = new DictionaryItemTreeQuery();
         query.setTypeCode("user_status");
 
@@ -50,7 +51,7 @@ class DictionaryItemServiceImplTest {
         DictionaryItemDO dictionaryItem = item(1L, 0L, "Enabled", "0", 1);
         dictionaryItem.setRemark("default");
         when(mapper.selectById(1L)).thenReturn(dictionaryItem);
-        DictionaryItemService service = new DictionaryItemServiceImpl(mapper, typeMapper(), noScopeBuilder());
+        DictionaryItemService service = new DictionaryItemServiceImpl(mapper, typeMapper(), noScopeBuilder(), cacheService());
 
         DictionaryItemDetailResponse result = service.getDictionaryItem(1L);
 
@@ -62,7 +63,7 @@ class DictionaryItemServiceImplTest {
     void shouldCreateDictionaryItem() {
         DictionaryItemMapper mapper = Mockito.mock(DictionaryItemMapper.class);
         when(mapper.selectList(any())).thenReturn(List.of());
-        DictionaryItemService service = new DictionaryItemServiceImpl(mapper, typeMapper(), noScopeBuilder());
+        DictionaryItemService service = new DictionaryItemServiceImpl(mapper, typeMapper(), noScopeBuilder(), cacheService());
 
         Long result = service.createDictionaryItem(saveRequest());
 
@@ -75,7 +76,7 @@ class DictionaryItemServiceImplTest {
         DictionaryItemMapper mapper = Mockito.mock(DictionaryItemMapper.class);
         when(mapper.selectById(1L)).thenReturn(item(1L, 0L, "Enabled", "0", 1));
         when(mapper.selectCount(any())).thenReturn(1L);
-        DictionaryItemService service = new DictionaryItemServiceImpl(mapper, typeMapper(), noScopeBuilder());
+        DictionaryItemService service = new DictionaryItemServiceImpl(mapper, typeMapper(), noScopeBuilder(), cacheService());
 
         assertThatThrownBy(() -> service.deleteDictionaryItem(1L))
             .isInstanceOf(ResponseStatusException.class)
@@ -126,5 +127,9 @@ class DictionaryItemServiceImplTest {
         CurrentDataScopeResolver resolver = Mockito.mock(CurrentDataScopeResolver.class);
         when(resolver.resolveCurrentRule()).thenReturn(java.util.Optional.empty());
         return new DataScopeConditionBuilder(resolver);
+    }
+
+    private DictionaryCatalogCacheService cacheService() {
+        return Mockito.mock(DictionaryCatalogCacheService.class);
     }
 }

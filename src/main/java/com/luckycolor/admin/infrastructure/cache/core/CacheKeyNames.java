@@ -8,6 +8,8 @@ public final class CacheKeyNames {
 
     public static final String TENANT_CONTEXT = "tenant:context";
 
+    public static final String SYSTEM_DICTIONARY = "system:dictionary";
+
     private CacheKeyNames() {
     }
 }

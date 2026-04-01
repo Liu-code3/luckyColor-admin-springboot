@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 import com.luckycolor.admin.common.page.PageResult;
 import com.luckycolor.admin.infrastructure.security.datascope.CurrentDataScopeResolver;
 import com.luckycolor.admin.infrastructure.security.datascope.DataScopeConditionBuilder;
+import com.luckycolor.admin.modules.system.dictionary.cache.service.DictionaryCatalogCacheService;
 import com.luckycolor.admin.modules.system.dictionary.item.dataobject.DictionaryItemDO;
 import com.luckycolor.admin.modules.system.dictionary.item.mapper.DictionaryItemMapper;
 import com.luckycolor.admin.modules.system.dictionary.type.dataobject.DictionaryTypeDO;
@@ -29,7 +30,7 @@ class DictionaryTypeServiceImplTest {
     void shouldReturnDictionaryTypePage() {
         DictionaryTypeMapper mapper = Mockito.mock(DictionaryTypeMapper.class);
         when(mapper.selectPageResult(any(), any())).thenReturn(PageResult.of(List.of(dictionaryType()), 1L));
-        DictionaryTypeService service = new DictionaryTypeServiceImpl(mapper, noScopeBuilder(), itemMapper());
+        DictionaryTypeService service = new DictionaryTypeServiceImpl(mapper, noScopeBuilder(), itemMapper(), cacheService());
 
         PageResult<DictionaryTypePageResponse> result = service.pageDictionaryTypes(new DictionaryTypePageQuery());
 
@@ -41,7 +42,7 @@ class DictionaryTypeServiceImplTest {
     void shouldReturnDictionaryTypeDetail() {
         DictionaryTypeMapper mapper = Mockito.mock(DictionaryTypeMapper.class);
         when(mapper.selectById(1L)).thenReturn(dictionaryType());
-        DictionaryTypeService service = new DictionaryTypeServiceImpl(mapper, noScopeBuilder(), itemMapper());
+        DictionaryTypeService service = new DictionaryTypeServiceImpl(mapper, noScopeBuilder(), itemMapper(), cacheService());
 
         DictionaryTypeDetailResponse result = service.getDictionaryType(1L);
 
@@ -52,7 +53,7 @@ class DictionaryTypeServiceImplTest {
     void shouldCreateDictionaryType() {
         DictionaryTypeMapper mapper = Mockito.mock(DictionaryTypeMapper.class);
         when(mapper.selectList(any())).thenReturn(List.of());
-        DictionaryTypeService service = new DictionaryTypeServiceImpl(mapper, noScopeBuilder(), itemMapper());
+        DictionaryTypeService service = new DictionaryTypeServiceImpl(mapper, noScopeBuilder(), itemMapper(), cacheService());
 
         Long result = service.createDictionaryType(saveRequest());
 
@@ -66,7 +67,7 @@ class DictionaryTypeServiceImplTest {
         when(mapper.selectById(1L)).thenReturn(dictionaryType());
         DictionaryItemMapper itemMapper = itemMapper();
         when(itemMapper.selectCount(any())).thenReturn(0L);
-        DictionaryTypeService service = new DictionaryTypeServiceImpl(mapper, noScopeBuilder(), itemMapper);
+        DictionaryTypeService service = new DictionaryTypeServiceImpl(mapper, noScopeBuilder(), itemMapper, cacheService());
 
         service.deleteDictionaryType(1L);
 
@@ -77,7 +78,7 @@ class DictionaryTypeServiceImplTest {
     void shouldThrowWhenDictionaryTypeNotFound() {
         DictionaryTypeMapper mapper = Mockito.mock(DictionaryTypeMapper.class);
         when(mapper.selectById(99L)).thenReturn(null);
-        DictionaryTypeService service = new DictionaryTypeServiceImpl(mapper, noScopeBuilder(), itemMapper());
+        DictionaryTypeService service = new DictionaryTypeServiceImpl(mapper, noScopeBuilder(), itemMapper(), cacheService());
 
         assertThatThrownBy(() -> service.getDictionaryType(99L))
             .isInstanceOf(ResponseStatusException.class)
@@ -117,5 +118,9 @@ class DictionaryTypeServiceImplTest {
         when(mapper.selectList(any())).thenReturn(List.<DictionaryItemDO>of());
         when(mapper.selectCount(any())).thenReturn(0L);
         return mapper;
+    }
+
+    private DictionaryCatalogCacheService cacheService() {
+        return Mockito.mock(DictionaryCatalogCacheService.class);
     }
 }
