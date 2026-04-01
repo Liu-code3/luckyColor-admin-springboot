@@ -85,6 +85,7 @@ app:
             - system:role:create
             - system:role:update
             - system:role:authorize
+            - system:department:query
             - security:audit:query
             - tenant:query
             - tenant:create
@@ -137,6 +138,12 @@ app:
               component: system/role/index
               roles:
                 - ROLE_SUPER_ADMIN
+            - code: system:department
+              name: SystemDepartment
+              path: departments
+              component: system/department/index
+              permissions:
+                - system:department:query
   tenancy:
     enabled: ${TENANT_ENABLED:true}
     header: ${TENANT_HEADER:x-tenant-id}
