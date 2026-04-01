@@ -81,6 +81,9 @@ app:
             - system:menu:create
             - system:menu:update
             - system:menu:delete
+            - system:role:query
+            - system:role:create
+            - system:role:update
             - security:audit:query
             - tenant:query
             - tenant:create
