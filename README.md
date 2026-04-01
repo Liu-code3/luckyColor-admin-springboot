@@ -71,6 +71,8 @@ GET /api/auth/profile
 GET /api/auth/permissions
 GET /api/auth/routes
 GET /api/auth/access
+GET /api/admin/user-preferences/current
+PUT /api/admin/user-preferences/current
 ```
 
 Security audit endpoint:

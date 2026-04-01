@@ -1,0 +1,22 @@
+CREATE TABLE IF NOT EXISTS sys_user_preference (
+    id BIGINT NOT NULL,
+    tenant_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL,
+    theme_scheme VARCHAR(32) NOT NULL DEFAULT 'light',
+    theme_color VARCHAR(16) NOT NULL DEFAULT '#1677ff',
+    layout_mode VARCHAR(32) NOT NULL DEFAULT 'side',
+    content_width VARCHAR(32) NOT NULL DEFAULT 'fluid',
+    tab_bar TINYINT NOT NULL DEFAULT 1,
+    fixed_header TINYINT NOT NULL DEFAULT 1,
+    fixed_sidebar TINYINT NOT NULL DEFAULT 1,
+    sidebar_collapsed TINYINT NOT NULL DEFAULT 0,
+    compact_mode TINYINT NOT NULL DEFAULT 0,
+    locale VARCHAR(32) NOT NULL DEFAULT 'zh-CN',
+    create_by VARCHAR(64) NULL,
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_by VARCHAR(64) NULL,
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_sys_user_preference_tenant_user (tenant_id, user_id),
+    KEY idx_sys_user_preference_user_id (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='User preference';
