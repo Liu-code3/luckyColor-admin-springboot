@@ -86,6 +86,9 @@ app:
             - system:role:update
             - system:role:authorize
             - system:department:query
+            - system:department:create
+            - system:department:update
+            - system:department:delete
             - security:audit:query
             - tenant:query
             - tenant:create

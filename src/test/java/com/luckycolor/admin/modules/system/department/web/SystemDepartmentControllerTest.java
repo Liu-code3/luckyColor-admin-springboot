@@ -1,8 +1,12 @@
 package com.luckycolor.admin.modules.system.department.web;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -12,6 +16,7 @@ import com.luckycolor.admin.modules.system.department.web.response.SystemDepartm
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
@@ -75,5 +80,48 @@ class SystemDepartmentControllerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.departmentName").value("Headquarters"))
             .andExpect(jsonPath("$.data.leader").value("Alice"));
+    }
+
+    @Test
+    void shouldCreateDepartment() throws Exception {
+        SystemDepartmentService service = Mockito.mock(SystemDepartmentService.class);
+        when(service.createDepartment(any())).thenReturn(1L);
+        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new SystemDepartmentController(service)).build();
+
+        mockMvc.perform(post("/admin/departments")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"parentId":0,"departmentName":"Engineering","leader":"Bob","phone":"13800000001","email":"eng@example.com","sort":1,"status":0,"remark":"default"}
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data").value(1));
+    }
+
+    @Test
+    void shouldUpdateDepartmentStatus() throws Exception {
+        SystemDepartmentService service = Mockito.mock(SystemDepartmentService.class);
+        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new SystemDepartmentController(service)).build();
+
+        mockMvc.perform(put("/admin/departments/1/status")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"status":1}
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data").value(true));
+
+        Mockito.verify(service).updateDepartmentStatus(eq(1L), any());
+    }
+
+    @Test
+    void shouldDeleteDepartment() throws Exception {
+        SystemDepartmentService service = Mockito.mock(SystemDepartmentService.class);
+        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new SystemDepartmentController(service)).build();
+
+        mockMvc.perform(delete("/admin/departments/1"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data").value(true));
+
+        Mockito.verify(service).deleteDepartment(1L);
     }
 }
