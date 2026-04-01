@@ -96,6 +96,9 @@ app:
             - system:dictionary:update
             - system:dictionary:delete
             - system:dictionary:refresh-cache
+            - system:config:query
+            - system:config:create
+            - system:config:update
             - security:audit:query
             - tenant:query
             - tenant:create
@@ -160,6 +163,12 @@ app:
               component: system/dictionary/index
               permissions:
                 - system:dictionary:query
+            - code: system:config
+              name: SystemConfig
+              path: configs
+              component: system/config/index
+              permissions:
+                - system:config:query
   tenancy:
     enabled: ${TENANT_ENABLED:true}
     header: ${TENANT_HEADER:x-tenant-id}
