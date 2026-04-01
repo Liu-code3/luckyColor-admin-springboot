@@ -1,7 +1,7 @@
 package com.luckycolor.admin.modules.platform.docs.web;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import org.junit.jupiter.api.Test;
@@ -18,22 +18,24 @@ class ApiDocsControllerTest {
     private MockMvc mockMvc;
 
     @Test
-    void shouldRedirectDocsToSwaggerUi() throws Exception {
+    void shouldRenderDocsPage() throws Exception {
         mockMvc.perform(get("/docs"))
-            .andExpect(status().is3xxRedirection())
-            .andExpect(redirectedUrl("/swagger-ui/index.html"));
+            .andExpect(status().isOk())
+            .andExpect(content().contentTypeCompatibleWith("text/html"))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("/docs/assets/swagger-ui.css")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("/v3/api-docs")));
     }
 
     @Test
-    void shouldRedirectDocsSlashToSwaggerUi() throws Exception {
+    void shouldRenderDocsPageWithTrailingSlash() throws Exception {
         mockMvc.perform(get("/docs/"))
-            .andExpect(status().is3xxRedirection())
-            .andExpect(redirectedUrl("/swagger-ui/index.html"));
+            .andExpect(status().isOk())
+            .andExpect(content().contentTypeCompatibleWith("text/html"));
     }
 
     @Test
-    void shouldAllowSwaggerUiWithoutAuthentication() throws Exception {
-        mockMvc.perform(get("/swagger-ui/index.html"))
+    void shouldAllowDocsAssetsWithoutAuthentication() throws Exception {
+        mockMvc.perform(get("/docs/assets/swagger-ui.css"))
             .andExpect(status().isOk());
     }
 }
