@@ -74,6 +74,9 @@ app:
             - dashboard:query
             - file:upload
             - file:download
+            - codegen:query
+            - codegen:create
+            - codegen:update
             - watermark:query
             - watermark:update
             - i18n:query
@@ -138,6 +141,9 @@ app:
             - dashboard:query
             - file:upload
             - file:download
+            - codegen:query
+            - codegen:create
+            - codegen:update
             - watermark:query
             - watermark:update
             - i18n:query
@@ -214,6 +220,12 @@ app:
               component: platform/watermark/index
               permissions:
                 - watermark:query
+            - code: system:codegen
+              name: SystemCodegen
+              path: codegen
+              component: platform/codegen/index
+              permissions:
+                - codegen:query
   tenancy:
     enabled: ${TENANT_ENABLED:true}
     header: ${TENANT_HEADER:x-tenant-id}

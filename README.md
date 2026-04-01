@@ -75,6 +75,12 @@ GET /api/admin/user-preferences/current
 PUT /api/admin/user-preferences/current
 GET /api/admin/watermark-config/current
 PUT /api/admin/watermark-config/current
+GET /api/admin/codegen/tables/discovery
+POST /api/admin/codegen/tables/import
+GET /api/admin/codegen/tables/page
+GET /api/admin/codegen/tables/{id}
+PUT /api/admin/codegen/tables/{id}
+PUT /api/admin/codegen/tables/{id}/columns
 ```
 
 Security audit endpoint:
