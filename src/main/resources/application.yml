@@ -89,6 +89,10 @@ app:
             - system:department:create
             - system:department:update
             - system:department:delete
+            - system:dictionary:query
+            - system:dictionary:create
+            - system:dictionary:update
+            - system:dictionary:delete
             - security:audit:query
             - tenant:query
             - tenant:create
@@ -147,6 +151,12 @@ app:
               component: system/department/index
               permissions:
                 - system:department:query
+            - code: system:dictionary
+              name: SystemDictionary
+              path: dictionaries
+              component: system/dictionary/index
+              permissions:
+                - system:dictionary:query
   tenancy:
     enabled: ${TENANT_ENABLED:true}
     header: ${TENANT_HEADER:x-tenant-id}
