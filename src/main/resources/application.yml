@@ -71,6 +71,7 @@ app:
           roles:
             - ROLE_SUPER_ADMIN
           permissions:
+            - dashboard:query
             - system:user:query
             - system:user:create
             - system:user:update
@@ -127,6 +128,7 @@ app:
           roles:
             - ROLE_TENANT_OPERATOR
           permissions:
+            - dashboard:query
             - tenant:query
             - tenant:package:query
     access:
@@ -137,6 +139,8 @@ app:
           component: dashboard/index
           icon: dashboard
           keep-alive: true
+          permissions:
+            - dashboard:query
         - code: system
           name: System
           path: /system
