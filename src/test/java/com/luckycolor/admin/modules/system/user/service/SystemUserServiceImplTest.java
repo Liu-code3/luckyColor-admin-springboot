@@ -11,6 +11,8 @@ import com.luckycolor.admin.common.page.PageResult;
 import com.luckycolor.admin.infrastructure.security.datascope.CurrentDataScopeResolver;
 import com.luckycolor.admin.infrastructure.security.datascope.DataScopeConditionBuilder;
 import com.luckycolor.admin.modules.iam.auth.config.LocalAuthProperties;
+import com.luckycolor.admin.modules.system.role.dataobject.SystemRoleDO;
+import com.luckycolor.admin.modules.system.role.mapper.SystemRoleMapper;
 import com.luckycolor.admin.modules.system.user.dataobject.SystemUserDO;
 import com.luckycolor.admin.modules.system.user.mapper.SystemUserMapper;
 import com.luckycolor.admin.modules.system.user.service.impl.SystemUserServiceImpl;
@@ -59,11 +61,19 @@ class SystemUserServiceImplTest {
     void shouldReturnRoleOptions() {
         SystemUserMapper mapper = Mockito.mock(SystemUserMapper.class);
         when(mapper.selectList(any(Wrapper.class))).thenReturn(List.of(user()));
-        SystemUserService service = new SystemUserServiceImpl(mapper, noScopeBuilder(), localAuthProperties(), passwordEncoder());
+        SystemRoleMapper roleMapper = Mockito.mock(SystemRoleMapper.class);
+        when(roleMapper.selectList(any(Wrapper.class))).thenReturn(List.of(role()));
+        SystemUserService service = new SystemUserServiceImpl(
+            mapper,
+            noScopeBuilder(),
+            localAuthProperties(),
+            passwordEncoder(),
+            roleMapper
+        );
 
         List<String> result = service.listRoleOptions();
 
-        assertThat(result).contains("ROLE_SUPER_ADMIN", "ROLE_ADMIN", "ROLE_TENANT_OPERATOR");
+        assertThat(result).contains("ROLE_MANAGER", "ROLE_SUPER_ADMIN", "ROLE_ADMIN", "ROLE_TENANT_OPERATOR");
     }
 
     @Test
@@ -230,6 +240,16 @@ class SystemUserServiceImplTest {
         PasswordEncoder passwordEncoder = Mockito.mock(PasswordEncoder.class);
         when(passwordEncoder.encode(any())).thenReturn("$2a$encoded-password");
         return passwordEncoder;
+    }
+
+    private SystemRoleDO role() {
+        SystemRoleDO role = new SystemRoleDO();
+        role.setId(1L);
+        role.setRoleCode("ROLE_MANAGER");
+        role.setRoleName("Manager");
+        role.setStatus(0);
+        role.setSort(1);
+        return role;
     }
 
     private SystemUserSaveRequest saveRequest() {

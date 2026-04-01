@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.luckycolor.admin.common.page.PageResult;
 import com.luckycolor.admin.modules.system.role.service.SystemRoleService;
+import com.luckycolor.admin.modules.system.role.web.response.SystemRoleAuthorityResponse;
 import com.luckycolor.admin.modules.system.role.web.response.SystemRoleDetailResponse;
 import com.luckycolor.admin.modules.system.role.web.response.SystemRolePageResponse;
 import java.util.List;
@@ -76,5 +77,45 @@ class SystemRoleControllerTest {
             .andExpect(jsonPath("$.data").value(true));
 
         Mockito.verify(service).updateRoleStatus(eq(1L), any());
+    }
+
+    @Test
+    void shouldReturnRoleAuthority() throws Exception {
+        SystemRoleService service = Mockito.mock(SystemRoleService.class);
+        when(service.getRoleAuthority(1L)).thenReturn(
+            new SystemRoleAuthorityResponse(
+                1L,
+                1L,
+                "ROLE_ADMIN",
+                "Admin",
+                List.of(1L, 2L),
+                List.of("system:user:query"),
+                "DEPARTMENT",
+                100L,
+                List.of(100L, 101L)
+            )
+        );
+        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new SystemRoleController(service)).build();
+
+        mockMvc.perform(get("/admin/roles/1/authority"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.menuIds[0]").value(1))
+            .andExpect(jsonPath("$.data.dataScope").value("DEPARTMENT"));
+    }
+
+    @Test
+    void shouldUpdateRoleAuthority() throws Exception {
+        SystemRoleService service = Mockito.mock(SystemRoleService.class);
+        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new SystemRoleController(service)).build();
+
+        mockMvc.perform(put("/admin/roles/1/authority")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"menuIds":[1,2],"permissionCodes":["system:user:query"],"dataScope":"DEPARTMENT","departmentId":100,"departmentIds":[100,101]}
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data").value(true));
+
+        Mockito.verify(service).updateRoleAuthority(eq(1L), any());
     }
 }

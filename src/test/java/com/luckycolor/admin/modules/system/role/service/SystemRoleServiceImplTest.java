@@ -12,9 +12,11 @@ import com.luckycolor.admin.infrastructure.security.datascope.DataScopeCondition
 import com.luckycolor.admin.modules.system.role.dataobject.SystemRoleDO;
 import com.luckycolor.admin.modules.system.role.mapper.SystemRoleMapper;
 import com.luckycolor.admin.modules.system.role.service.impl.SystemRoleServiceImpl;
+import com.luckycolor.admin.modules.system.role.web.request.SystemRoleAuthorityRequest;
 import com.luckycolor.admin.modules.system.role.web.request.SystemRolePageQuery;
 import com.luckycolor.admin.modules.system.role.web.request.SystemRoleSaveRequest;
 import com.luckycolor.admin.modules.system.role.web.request.SystemRoleStatusRequest;
+import com.luckycolor.admin.modules.system.role.web.response.SystemRoleAuthorityResponse;
 import com.luckycolor.admin.modules.system.role.web.response.SystemRoleDetailResponse;
 import com.luckycolor.admin.modules.system.role.web.response.SystemRolePageResponse;
 import java.util.List;
@@ -83,6 +85,47 @@ class SystemRoleServiceImplTest {
         assertThatThrownBy(() -> service.getRole(99L))
             .isInstanceOf(ResponseStatusException.class)
             .hasMessageContaining("404 NOT_FOUND");
+    }
+
+    @Test
+    void shouldReturnRoleAuthority() {
+        SystemRoleMapper mapper = Mockito.mock(SystemRoleMapper.class);
+        SystemRoleDO role = role();
+        role.setMenuIds("1,2");
+        role.setPermissionCodes("system:user:query,system:user:create");
+        role.setDataScope("DEPARTMENT");
+        role.setDepartmentId(100L);
+        role.setDepartmentIds("100,101");
+        when(mapper.selectById(1L)).thenReturn(role);
+        SystemRoleService service = new SystemRoleServiceImpl(mapper, noScopeBuilder());
+
+        SystemRoleAuthorityResponse result = service.getRoleAuthority(1L);
+
+        assertThat(result.menuIds()).containsExactly(1L, 2L);
+        assertThat(result.permissionCodes()).containsExactly("system:user:query", "system:user:create");
+        assertThat(result.departmentIds()).containsExactly(100L, 101L);
+    }
+
+    @Test
+    void shouldUpdateRoleAuthority() {
+        SystemRoleMapper mapper = Mockito.mock(SystemRoleMapper.class);
+        SystemRoleDO role = role();
+        when(mapper.selectById(1L)).thenReturn(role);
+        SystemRoleService service = new SystemRoleServiceImpl(mapper, noScopeBuilder());
+        SystemRoleAuthorityRequest request = new SystemRoleAuthorityRequest();
+        request.setMenuIds(List.of(1L, 2L));
+        request.setPermissionCodes(List.of("system:user:query", "system:user:create"));
+        request.setDataScope("DEPARTMENT");
+        request.setDepartmentId(100L);
+        request.setDepartmentIds(List.of(100L, 101L));
+
+        service.updateRoleAuthority(1L, request);
+
+        assertThat(role.getMenuIds()).isEqualTo("1,2");
+        assertThat(role.getPermissionCodes()).isEqualTo("system:user:query,system:user:create");
+        assertThat(role.getDataScope()).isEqualTo("DEPARTMENT");
+        assertThat(role.getDepartmentIds()).isEqualTo("100,101");
+        verify(mapper).updateById(role);
     }
 
     private SystemRoleDO role() {

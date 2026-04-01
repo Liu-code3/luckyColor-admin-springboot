@@ -5,9 +5,11 @@ import com.luckycolor.admin.common.page.PageResult;
 import com.luckycolor.admin.infrastructure.security.authorization.RequirePermission;
 import com.luckycolor.admin.modules.system.role.mapper.SystemRoleMapper;
 import com.luckycolor.admin.modules.system.role.service.SystemRoleService;
+import com.luckycolor.admin.modules.system.role.web.request.SystemRoleAuthorityRequest;
 import com.luckycolor.admin.modules.system.role.web.request.SystemRolePageQuery;
 import com.luckycolor.admin.modules.system.role.web.request.SystemRoleSaveRequest;
 import com.luckycolor.admin.modules.system.role.web.request.SystemRoleStatusRequest;
+import com.luckycolor.admin.modules.system.role.web.response.SystemRoleAuthorityResponse;
 import com.luckycolor.admin.modules.system.role.web.response.SystemRoleDetailResponse;
 import com.luckycolor.admin.modules.system.role.web.response.SystemRolePageResponse;
 import jakarta.validation.Valid;
@@ -62,6 +64,22 @@ public class SystemRoleController {
     @RequirePermission("system:role:update")
     public ApiResponse<Boolean> updateStatus(@PathVariable Long id, @Valid @RequestBody SystemRoleStatusRequest request) {
         systemRoleService.updateRoleStatus(id, request);
+        return ApiResponse.success(true);
+    }
+
+    @GetMapping("/{id}/authority")
+    @RequirePermission("system:role:query")
+    public ApiResponse<SystemRoleAuthorityResponse> authority(@PathVariable Long id) {
+        return ApiResponse.success(systemRoleService.getRoleAuthority(id));
+    }
+
+    @PutMapping("/{id}/authority")
+    @RequirePermission("system:role:authorize")
+    public ApiResponse<Boolean> updateAuthority(
+        @PathVariable Long id,
+        @Valid @RequestBody SystemRoleAuthorityRequest request
+    ) {
+        systemRoleService.updateRoleAuthority(id, request);
         return ApiResponse.success(true);
     }
 }

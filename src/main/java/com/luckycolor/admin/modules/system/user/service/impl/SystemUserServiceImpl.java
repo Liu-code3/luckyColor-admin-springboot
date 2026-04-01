@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.luckycolor.admin.common.page.PageResult;
 import com.luckycolor.admin.infrastructure.security.datascope.DataScopeConditionBuilder;
 import com.luckycolor.admin.modules.iam.auth.config.LocalAuthProperties;
+import com.luckycolor.admin.modules.system.role.dataobject.SystemRoleDO;
+import com.luckycolor.admin.modules.system.role.mapper.SystemRoleMapper;
 import com.luckycolor.admin.modules.system.user.dataobject.SystemUserDO;
 import com.luckycolor.admin.modules.system.user.mapper.SystemUserMapper;
 import com.luckycolor.admin.modules.system.user.service.SystemUserService;
@@ -24,6 +26,7 @@ import java.util.List;
 import java.util.Set;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.http.HttpStatus;
+import org.springframework.lang.Nullable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -38,6 +41,7 @@ public class SystemUserServiceImpl implements SystemUserService {
     private final DataScopeConditionBuilder dataScopeConditionBuilder;
     private final LocalAuthProperties localAuthProperties;
     private final PasswordEncoder passwordEncoder;
+    private final SystemRoleMapper systemRoleMapper;
 
     public SystemUserServiceImpl(
         SystemUserMapper systemUserMapper,
@@ -45,10 +49,21 @@ public class SystemUserServiceImpl implements SystemUserService {
         LocalAuthProperties localAuthProperties,
         PasswordEncoder passwordEncoder
     ) {
+        this(systemUserMapper, dataScopeConditionBuilder, localAuthProperties, passwordEncoder, null);
+    }
+
+    public SystemUserServiceImpl(
+        SystemUserMapper systemUserMapper,
+        DataScopeConditionBuilder dataScopeConditionBuilder,
+        LocalAuthProperties localAuthProperties,
+        PasswordEncoder passwordEncoder,
+        @Nullable SystemRoleMapper systemRoleMapper
+    ) {
         this.systemUserMapper = systemUserMapper;
         this.dataScopeConditionBuilder = dataScopeConditionBuilder;
         this.localAuthProperties = localAuthProperties;
         this.passwordEncoder = passwordEncoder;
+        this.systemRoleMapper = systemRoleMapper;
     }
 
     @Override
@@ -65,6 +80,14 @@ public class SystemUserServiceImpl implements SystemUserService {
     @Override
     public List<String> listRoleOptions() {
         Set<String> roleCodes = new LinkedHashSet<>();
+        if (systemRoleMapper != null) {
+            LambdaQueryWrapper<SystemRoleDO> queryWrapper = new LambdaQueryWrapper<>();
+            queryWrapper.eq(SystemRoleDO::getStatus, 0)
+                .orderByAsc(SystemRoleDO::getSort)
+                .orderByAsc(SystemRoleDO::getId);
+            systemRoleMapper.selectList(queryWrapper)
+                .forEach(role -> roleCodes.add(role.getRoleCode()));
+        }
         systemUserMapper.selectList(new LambdaQueryWrapper<SystemUserDO>())
             .forEach(user -> roleCodes.addAll(splitCodes(user.getRoleCodes())));
         localAuthProperties.getLocalUsers().forEach(user -> roleCodes.addAll(safeList(user.getRoles())));

@@ -6,9 +6,11 @@ import com.luckycolor.admin.infrastructure.security.datascope.DataScopeCondition
 import com.luckycolor.admin.modules.system.role.dataobject.SystemRoleDO;
 import com.luckycolor.admin.modules.system.role.mapper.SystemRoleMapper;
 import com.luckycolor.admin.modules.system.role.service.SystemRoleService;
+import com.luckycolor.admin.modules.system.role.web.request.SystemRoleAuthorityRequest;
 import com.luckycolor.admin.modules.system.role.web.request.SystemRolePageQuery;
 import com.luckycolor.admin.modules.system.role.web.request.SystemRoleSaveRequest;
 import com.luckycolor.admin.modules.system.role.web.request.SystemRoleStatusRequest;
+import com.luckycolor.admin.modules.system.role.web.response.SystemRoleAuthorityResponse;
 import com.luckycolor.admin.modules.system.role.web.response.SystemRoleDetailResponse;
 import com.luckycolor.admin.modules.system.role.web.response.SystemRolePageResponse;
 import java.util.List;
@@ -65,6 +67,22 @@ public class SystemRoleServiceImpl implements SystemRoleService {
     public void updateRoleStatus(Long id, SystemRoleStatusRequest request) {
         SystemRoleDO role = getRequiredRole(id);
         role.setStatus(request.getStatus());
+        systemRoleMapper.updateById(role);
+    }
+
+    @Override
+    public SystemRoleAuthorityResponse getRoleAuthority(Long id) {
+        return toAuthorityResponse(getRequiredRole(id));
+    }
+
+    @Override
+    public void updateRoleAuthority(Long id, SystemRoleAuthorityRequest request) {
+        SystemRoleDO role = getRequiredRole(id);
+        role.setMenuIds(joinLongValues(request.getMenuIds()));
+        role.setPermissionCodes(joinStringValues(request.getPermissionCodes()));
+        role.setDataScope(request.getDataScope());
+        role.setDepartmentId(request.getDepartmentId());
+        role.setDepartmentIds(joinLongValues(request.getDepartmentIds()));
         systemRoleMapper.updateById(role);
     }
 
@@ -129,5 +147,63 @@ public class SystemRoleServiceImpl implements SystemRoleService {
             role.getStatus(),
             role.getRemark()
         );
+    }
+
+    private SystemRoleAuthorityResponse toAuthorityResponse(SystemRoleDO role) {
+        return new SystemRoleAuthorityResponse(
+            role.getId(),
+            role.getTenantId(),
+            role.getRoleCode(),
+            role.getRoleName(),
+            splitLongValues(role.getMenuIds()),
+            splitStringValues(role.getPermissionCodes()),
+            role.getDataScope(),
+            role.getDepartmentId(),
+            splitLongValues(role.getDepartmentIds())
+        );
+    }
+
+    private String joinLongValues(List<Long> values) {
+        if (values == null || values.isEmpty()) {
+            return null;
+        }
+        return values.stream()
+            .map(String::valueOf)
+            .distinct()
+            .reduce((left, right) -> left + "," + right)
+            .orElse(null);
+    }
+
+    private String joinStringValues(List<String> values) {
+        if (values == null || values.isEmpty()) {
+            return null;
+        }
+        return values.stream()
+            .filter(StringUtils::hasText)
+            .map(String::trim)
+            .distinct()
+            .reduce((left, right) -> left + "," + right)
+            .orElse(null);
+    }
+
+    private List<Long> splitLongValues(String values) {
+        if (!StringUtils.hasText(values)) {
+            return List.of();
+        }
+        return java.util.Arrays.stream(values.split(","))
+            .map(String::trim)
+            .filter(StringUtils::hasText)
+            .map(Long::valueOf)
+            .toList();
+    }
+
+    private List<String> splitStringValues(String values) {
+        if (!StringUtils.hasText(values)) {
+            return List.of();
+        }
+        return java.util.Arrays.stream(values.split(","))
+            .map(String::trim)
+            .filter(StringUtils::hasText)
+            .toList();
     }
 }
