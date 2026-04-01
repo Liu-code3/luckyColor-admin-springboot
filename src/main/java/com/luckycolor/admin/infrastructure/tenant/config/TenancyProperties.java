@@ -28,6 +28,8 @@ public class TenancyProperties {
         "/api/auth/login",
         "/health",
         "/api/health",
+        "/version",
+        "/api/version",
         "/docs",
         "/api/docs",
         "/swagger-ui",

@@ -38,6 +38,13 @@ LuckyColor Admin backend rewrite based on Spring Boot.
 ./mvnw spring-boot:run
 ```
 
+Start with production profile:
+
+```powershell
+$env:SPRING_PROFILES_ACTIVE="prod"
+./mvnw spring-boot:run
+```
+
 Enable Flyway migration when needed:
 
 ```powershell
@@ -95,3 +102,14 @@ Security audit endpoint:
 ```text
 GET /api/admin/security-audit-logs/page
 ```
+
+Version info endpoint:
+
+```text
+GET /api/version
+```
+
+Release preparation docs:
+
+- `docs/release/v1.0.0-alpha.1.md`
+- `docs/release/v1.0.0-alpha.1-checklist.md`

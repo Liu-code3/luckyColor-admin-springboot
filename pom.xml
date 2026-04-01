@@ -10,7 +10,7 @@
 	</parent>
 	<groupId>com.luckycolor</groupId>
 	<artifactId>luckycolor-admin-springboot</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
+	<version>1.0.0-alpha.1</version>
 	<name>luckycolor-admin-springboot</name>
 	<description>LuckyColor admin backend rewrite based on Spring Boot</description>
 	<url/>
@@ -151,6 +151,14 @@
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
+				<executions>
+					<execution>
+						<phase>process-resources</phase>
+						<goals>
+							<goal>build-info</goal>
+						</goals>
+					</execution>
+				</executions>
 				<configuration>
 					<excludes>
 						<exclude>

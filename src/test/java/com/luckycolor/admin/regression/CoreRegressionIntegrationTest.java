@@ -72,6 +72,15 @@ class CoreRegressionIntegrationTest {
     }
 
     @Test
+    void shouldReturnVersionInfoWithoutAuthentication() throws Exception {
+        mockMvc.perform(get("/version"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.code").value(0))
+            .andExpect(jsonPath("$.data.version").value("1.0.0-alpha.1"))
+            .andExpect(jsonPath("$.data.releaseStage").value("alpha"));
+    }
+
+    @Test
     void shouldLoginAndUseTokenToReadProfile() throws Exception {
         String token = loginAndGetToken("admin", "admin123");
 

@@ -1,0 +1,31 @@
+spring:
+  config:
+    activate:
+      on-profile: prod
+  flyway:
+    enabled: ${FLYWAY_ENABLED:true}
+
+springdoc:
+  swagger-ui:
+    enabled: false
+  api-docs:
+    enabled: false
+
+management:
+  endpoint:
+    info:
+      enabled: true
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+logging:
+  level:
+    root: INFO
+
+app:
+  login-captcha:
+    enabled: ${LOGIN_CAPTCHA_ENABLED:true}
+  storage:
+    root-path: ${STORAGE_ROOT_PATH:/data/luckycolor/storage}

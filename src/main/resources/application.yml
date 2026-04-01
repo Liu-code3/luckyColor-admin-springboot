@@ -45,10 +45,22 @@ springdoc:
     path: /v3/api-docs
 
 management:
+  endpoint:
+    info:
+      enabled: true
   endpoints:
     web:
       exposure:
         include: health,info
+  info:
+    env:
+      enabled: true
+
+info:
+  app:
+    stage: ${APP_RELEASE_STAGE:alpha}
+    context-path: /api
+    docs-path: /api/docs
 
 app:
   cache:
@@ -236,6 +248,8 @@ app:
       - /api/auth/captcha
       - /health
       - /api/health
+      - /version
+      - /api/version
       - /docs
       - /api/docs
       - /swagger-ui

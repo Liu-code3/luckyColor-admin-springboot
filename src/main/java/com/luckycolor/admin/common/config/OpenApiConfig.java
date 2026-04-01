@@ -7,9 +7,17 @@ import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.boot.info.BuildProperties;
+import org.springframework.lang.Nullable;
 
 @Configuration
 public class OpenApiConfig {
+
+    private final BuildProperties buildProperties;
+
+    public OpenApiConfig(@Nullable BuildProperties buildProperties) {
+        this.buildProperties = buildProperties;
+    }
 
     @Bean
     OpenAPI luckyColorOpenApi() {
@@ -18,7 +26,7 @@ public class OpenApiConfig {
             .info(new Info()
                 .title("LuckyColor Admin Spring Boot API")
                 .description("Spring Boot rewrite for the LuckyColor admin backend")
-                .version("0.0.1-SNAPSHOT"))
+                .version(resolveVersion()))
             .addSecurityItem(new SecurityRequirement().addList(schemeName))
             .components(new Components().addSecuritySchemes(
                 schemeName,
@@ -27,5 +35,9 @@ public class OpenApiConfig {
                     .type(SecurityScheme.Type.HTTP)
                     .scheme("bearer")
                     .bearerFormat("JWT")));
+    }
+
+    private String resolveVersion() {
+        return buildProperties == null ? "unknown" : buildProperties.getVersion();
     }
 }
