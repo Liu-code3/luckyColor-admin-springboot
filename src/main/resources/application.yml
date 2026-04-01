@@ -74,6 +74,8 @@ app:
             - dashboard:query
             - file:upload
             - file:download
+            - watermark:query
+            - watermark:update
             - i18n:query
             - i18n:create
             - i18n:update
@@ -136,6 +138,8 @@ app:
             - dashboard:query
             - file:upload
             - file:download
+            - watermark:query
+            - watermark:update
             - i18n:query
             - tenant:query
             - tenant:package:query
@@ -204,6 +208,12 @@ app:
               component: platform/i18n/index
               permissions:
                 - i18n:query
+            - code: system:watermark
+              name: SystemWatermark
+              path: watermark
+              component: platform/watermark/index
+              permissions:
+                - watermark:query
   tenancy:
     enabled: ${TENANT_ENABLED:true}
     header: ${TENANT_HEADER:x-tenant-id}

@@ -73,6 +73,8 @@ GET /api/auth/routes
 GET /api/auth/access
 GET /api/admin/user-preferences/current
 PUT /api/admin/user-preferences/current
+GET /api/admin/watermark-config/current
+PUT /api/admin/watermark-config/current
 ```
 
 Security audit endpoint:
