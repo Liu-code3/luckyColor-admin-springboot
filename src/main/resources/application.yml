@@ -74,6 +74,9 @@ app:
             - dashboard:query
             - file:upload
             - file:download
+            - i18n:query
+            - i18n:create
+            - i18n:update
             - system:user:query
             - system:user:create
             - system:user:update
@@ -133,6 +136,7 @@ app:
             - dashboard:query
             - file:upload
             - file:download
+            - i18n:query
             - tenant:query
             - tenant:package:query
     access:
@@ -194,6 +198,12 @@ app:
               component: system/log/index
               permissions:
                 - system:operation-log:query
+            - code: system:i18n
+              name: SystemI18n
+              path: i18n-resources
+              component: platform/i18n/index
+              permissions:
+                - i18n:query
   tenancy:
     enabled: ${TENANT_ENABLED:true}
     header: ${TENANT_HEADER:x-tenant-id}
