@@ -45,6 +45,13 @@ $env:FLYWAY_ENABLED="true"
 ./mvnw spring-boot:run
 ```
 
+Flyway seed baseline now includes `V16__seed_bootstrap_data.sql`, which initializes:
+
+- default tenant package and tenant
+- built-in departments, roles, and users
+- system menu tree
+- core dictionary types and items
+
 Default cache key prefix:
 
 ```text
