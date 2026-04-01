@@ -103,6 +103,7 @@ app:
             - system:notice:create
             - system:notice:update
             - system:notice:publish
+            - system:operation-log:query
             - security:audit:query
             - tenant:query
             - tenant:create
@@ -179,6 +180,12 @@ app:
               component: system/notice/index
               permissions:
                 - system:notice:query
+            - code: system:operation-log
+              name: SystemOperationLog
+              path: operation-logs
+              component: system/log/index
+              permissions:
+                - system:operation-log:query
   tenancy:
     enabled: ${TENANT_ENABLED:true}
     header: ${TENANT_HEADER:x-tenant-id}
