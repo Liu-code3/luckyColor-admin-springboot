@@ -30,4 +30,10 @@ class ApiDocsControllerTest {
             .andExpect(status().is3xxRedirection())
             .andExpect(redirectedUrl("/swagger-ui/index.html"));
     }
+
+    @Test
+    void shouldAllowSwaggerUiWithoutAuthentication() throws Exception {
+        mockMvc.perform(get("/swagger-ui/index.html"))
+            .andExpect(status().isOk());
+    }
 }
