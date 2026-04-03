@@ -325,3 +325,4 @@ Spring Boot：
 - [x] Item 8: persist `menu_key`, `layout`, `redirect`, and `meta` on `sys_menu`
 - [x] Item 9: backfill built-in `sys_menu` contract data for existing seed rows
 - [x] Item 10: prefer database-backed auth users and merge active role permissions with local fallback
+- [x] Item 11: prefer database-backed auth routes and access snapshots with property fallback
