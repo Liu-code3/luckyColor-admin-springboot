@@ -9,18 +9,22 @@ import com.luckycolor.admin.modules.iam.auth.model.AuthUser;
 import com.luckycolor.admin.modules.iam.auth.service.AuthAccessRouteService;
 import com.luckycolor.admin.modules.iam.auth.service.AuthService;
 import com.luckycolor.admin.modules.iam.auth.service.LoginCaptchaService;
+import com.luckycolor.admin.modules.iam.auth.service.LegacyLoginCaptchaService;
 import com.luckycolor.admin.modules.iam.auth.service.AuthTokenSessionService;
 import com.luckycolor.admin.modules.iam.auth.service.AuthUserService;
 import com.luckycolor.admin.modules.iam.auth.service.LoginAuditService;
 import com.luckycolor.admin.modules.iam.auth.web.request.AuthLoginRequest;
 import com.luckycolor.admin.modules.iam.auth.web.response.AuthAccessSnapshotResponse;
 import com.luckycolor.admin.modules.iam.auth.web.response.AuthLoginResponse;
+import com.luckycolor.admin.modules.iam.auth.web.response.AuthLoginUserResponse;
 import com.luckycolor.admin.modules.iam.auth.web.response.AuthPermissionSnapshotResponse;
 import com.luckycolor.admin.modules.iam.auth.web.response.AuthProfileResponse;
 import com.luckycolor.admin.modules.iam.auth.web.response.AuthRouteResponse;
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.lang.Nullable;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -31,6 +35,8 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 public class AuthServiceImpl implements AuthService {
 
+    private static final Logger log = LoggerFactory.getLogger(AuthServiceImpl.class);
+
     private final AuthUserService authUserService;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenService jwtTokenService;
@@ -40,6 +46,7 @@ public class AuthServiceImpl implements AuthService {
     private final LoginCaptchaProperties loginCaptchaProperties;
     private final LoginAuditService loginAuditService;
     private final LoginCaptchaService loginCaptchaService;
+    private final LegacyLoginCaptchaService legacyLoginCaptchaService;
     private final SecurityAuditLogService securityAuditLogService;
 
     public AuthServiceImpl(
@@ -52,7 +59,8 @@ public class AuthServiceImpl implements AuthService {
         LoginCaptchaProperties loginCaptchaProperties,
         LoginAuditService loginAuditService,
         @Nullable SecurityAuditLogService securityAuditLogService,
-        @Nullable LoginCaptchaService loginCaptchaService
+        @Nullable LoginCaptchaService loginCaptchaService,
+        @Nullable LegacyLoginCaptchaService legacyLoginCaptchaService
     ) {
         this.authUserService = authUserService;
         this.passwordEncoder = passwordEncoder;
@@ -64,6 +72,7 @@ public class AuthServiceImpl implements AuthService {
         this.loginAuditService = loginAuditService;
         this.securityAuditLogService = securityAuditLogService;
         this.loginCaptchaService = loginCaptchaService;
+        this.legacyLoginCaptchaService = legacyLoginCaptchaService;
     }
 
     @Override
@@ -101,6 +110,9 @@ public class AuthServiceImpl implements AuthService {
             user.tenantId(),
             user.roles()
         );
+        AuthAccessSnapshotResponse accessSnapshot = authAccessRouteService.getAccessSnapshot(user);
+        List<String> roleCodes = resolveRoleCodes(user, accessSnapshot);
+        List<String> buttonCodes = resolveButtonCodes(user, accessSnapshot);
         loginAuditService.recordSuccess(user.userId(), user.username(), user.tenantId(), request.getRemoteIp());
         return new AuthLoginResponse(
             accessToken,
@@ -110,7 +122,27 @@ public class AuthServiceImpl implements AuthService {
             user.username(),
             user.nickname(),
             user.tenantId(),
-            user.roles()
+            roleCodes,
+            buttonCodes,
+            buttonCodes,
+            buttonCodes,
+            buttonCodes,
+            user.dataScope(),
+            resolveDataScopeDeptIds(user),
+            new AuthLoginUserResponse(
+                user.userId(),
+                user.tenantId(),
+                null,
+                user.username(),
+                user.nickname(),
+                roleCodes,
+                buttonCodes,
+                buttonCodes,
+                buttonCodes,
+                buttonCodes,
+                user.dataScope(),
+                resolveDataScopeDeptIds(user)
+            )
         );
     }
 
@@ -125,35 +157,57 @@ public class AuthServiceImpl implements AuthService {
         Instant expiresAt = jwtTokenService.resolveExpiration(token);
         authTokenSessionService.revoke(token, expiresAt);
         if (securityAuditLogService != null) {
-            securityAuditLogService.recordLogout(
-                authenticatedUser.userId(),
-                authenticatedUser.username(),
-                authenticatedUser.tenantId(),
-                remoteIp
-            );
+            try {
+                securityAuditLogService.recordLogout(
+                    authenticatedUser.userId(),
+                    authenticatedUser.username(),
+                    authenticatedUser.tenantId(),
+                    remoteIp
+                );
+            } catch (RuntimeException exception) {
+                log.warn(
+                    "failed to persist logout audit userId={} tenantId={}",
+                    authenticatedUser.userId(),
+                    authenticatedUser.tenantId(),
+                    exception
+                );
+            }
         }
     }
 
     @Override
     public AuthProfileResponse getProfile(JwtAuthenticatedUser authenticatedUser) {
         AuthUser user = getRequiredUser(authenticatedUser);
+        AuthAccessSnapshotResponse accessSnapshot = authAccessRouteService.getAccessSnapshot(user);
+        List<String> roleCodes = resolveRoleCodes(user, accessSnapshot);
+        List<String> buttonCodes = resolveButtonCodes(user, accessSnapshot);
         return new AuthProfileResponse(
+            user.userId(),
             user.userId(),
             user.username(),
             user.nickname(),
             user.tenantId(),
-            user.roles()
+            null,
+            roleCodes,
+            roleCodes,
+            buttonCodes,
+            buttonCodes,
+            buttonCodes,
+            buttonCodes,
+            user.dataScope(),
+            resolveDataScopeDeptIds(user)
         );
     }
 
     @Override
     public AuthPermissionSnapshotResponse getPermissionSnapshot(JwtAuthenticatedUser authenticatedUser) {
         AuthUser user = getRequiredUser(authenticatedUser);
+        AuthAccessSnapshotResponse accessSnapshot = authAccessRouteService.getAccessSnapshot(user);
         return new AuthPermissionSnapshotResponse(
             user.userId(),
             user.tenantId(),
-            user.roles(),
-            user.permissions()
+            resolveRoleCodes(user, accessSnapshot),
+            resolveButtonCodes(user, accessSnapshot)
         );
     }
 
@@ -171,10 +225,27 @@ public class AuthServiceImpl implements AuthService {
         if (!loginCaptchaProperties.isEnabled()) {
             return;
         }
+        if (StringUtils.hasText(request.getCaptchaToken())) {
+            if (legacyLoginCaptchaService == null) {
+                throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Login captcha service is unavailable");
+            }
+            legacyLoginCaptchaService.validateCaptchaToken(request.getCaptchaToken());
+            return;
+        }
         if (loginCaptchaService == null) {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Login captcha service is unavailable");
         }
         loginCaptchaService.validateCaptcha(request.getCaptchaKey(), request.getCaptchaCode());
+    }
+
+    private List<Long> resolveDataScopeDeptIds(AuthUser user) {
+        if (user.departmentIds() != null && !user.departmentIds().isEmpty()) {
+            return user.departmentIds();
+        }
+        if (user.departmentId() != null) {
+            return List.of(user.departmentId());
+        }
+        return List.of();
     }
 
     private boolean matchesPassword(String rawPassword, String storedPassword) {
@@ -185,6 +256,20 @@ public class AuthServiceImpl implements AuthService {
             return passwordEncoder.matches(rawPassword, storedPassword);
         }
         return Objects.equals(rawPassword, storedPassword);
+    }
+
+    private List<String> resolveRoleCodes(AuthUser user, AuthAccessSnapshotResponse accessSnapshot) {
+        if (accessSnapshot != null && accessSnapshot.user() != null && accessSnapshot.user().roleCodes() != null) {
+            return accessSnapshot.user().roleCodes();
+        }
+        return user.roles();
+    }
+
+    private List<String> resolveButtonCodes(AuthUser user, AuthAccessSnapshotResponse accessSnapshot) {
+        if (accessSnapshot != null && accessSnapshot.user() != null && accessSnapshot.user().buttonCodeList() != null) {
+            return accessSnapshot.user().buttonCodeList();
+        }
+        return user.permissions();
     }
 
     private AuthUser getRequiredUser(JwtAuthenticatedUser authenticatedUser) {

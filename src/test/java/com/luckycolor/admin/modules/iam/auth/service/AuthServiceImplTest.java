@@ -67,6 +67,58 @@ class AuthServiceImplTest {
     }
 
     @Test
+    void shouldUseAccessSnapshotButtonCodesForLoginProfileAndPermissionSnapshot() {
+        JwtTokenService jwtTokenService = Mockito.mock(JwtTokenService.class);
+        AuthAccessRouteService authAccessRouteService = Mockito.mock(AuthAccessRouteService.class);
+        PasswordEncoder passwordEncoder = Mockito.mock(PasswordEncoder.class);
+        when(passwordEncoder.matches("admin123", "$2a$encoded-password")).thenReturn(true);
+        when(jwtTokenService.createAccessToken(1L, "admin", 1L, List.of("ROLE_SUPER_ADMIN"))).thenReturn("jwt-token");
+        when(authAccessRouteService.getAccessSnapshot(Mockito.any())).thenReturn(
+            new AuthAccessSnapshotResponse(
+                new AuthAccessSnapshotResponse.AuthAccessUserResponse(
+                    1L,
+                    1L,
+                    "admin",
+                    "System Admin",
+                    List.of("ROLE_SUPER_ADMIN"),
+                    List.of("main_system"),
+                    List.of("button:from:snapshot")
+                ),
+                List.of(),
+                List.of()
+            )
+        );
+        AuthService authService = new AuthServiceImpl(
+            new LocalAuthUserServiceImpl(buildAuthProperties("$2a$encoded-password", 0)),
+            passwordEncoder,
+            jwtTokenService,
+            new InMemoryAuthTokenSessionService(),
+            authAccessRouteService,
+            buildJwtProperties(),
+            buildCaptchaProperties(false),
+            Mockito.mock(LoginAuditService.class),
+            null,
+            null,
+            null
+        );
+
+        AuthLoginResponse loginResponse = authService.login(buildLoginRequest("admin123"));
+        AuthProfileResponse profileResponse = authService.getProfile(
+            new JwtAuthenticatedUser(1L, "admin", 1L, List.of("ROLE_SUPER_ADMIN"))
+        );
+        AuthPermissionSnapshotResponse permissionResponse = authService.getPermissionSnapshot(
+            new JwtAuthenticatedUser(1L, "admin", 1L, List.of("ROLE_SUPER_ADMIN"))
+        );
+
+        assertThat(loginResponse.buttonCodeList()).containsExactly("button:from:snapshot");
+        assertThat(loginResponse.permissions()).containsExactly("button:from:snapshot");
+        assertThat(loginResponse.user().buttonCodeList()).containsExactly("button:from:snapshot");
+        assertThat(profileResponse.buttonCodeList()).containsExactly("button:from:snapshot");
+        assertThat(profileResponse.permissions()).containsExactly("button:from:snapshot");
+        assertThat(permissionResponse.permissions()).containsExactly("button:from:snapshot");
+    }
+
+    @Test
     void shouldRejectUnknownUser() {
         LoginAuditService loginAuditService = Mockito.mock(LoginAuditService.class);
         AuthService authService = new AuthServiceImpl(

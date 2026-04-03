@@ -326,3 +326,4 @@ Spring Boot：
 - [x] Item 9: backfill built-in `sys_menu` contract data for existing seed rows
 - [x] Item 10: prefer database-backed auth users and merge active role permissions with local fallback
 - [x] Item 11: prefer database-backed auth routes and access snapshots with property fallback
+- [x] Item 12: derive login/profile/button permission payloads from auth access context
