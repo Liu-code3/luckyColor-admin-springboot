@@ -25,13 +25,21 @@ public class MenuSaveRequest {
 
     private String routePath;
 
+    private String menuKey;
+
     private String component;
+
+    private String redirect;
+
+    private java.util.Map<String, Object> meta = new java.util.LinkedHashMap<>();
 
     private String permissionCode;
 
     private List<String> roleCodes = new ArrayList<>();
 
     private String icon;
+
+    private String layout;
 
     @NotNull
     private Integer sort;

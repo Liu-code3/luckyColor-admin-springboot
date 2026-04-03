@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.luckycolor.admin.common.page.PageQuery;
 import com.luckycolor.admin.common.page.PageResult;
 import com.luckycolor.admin.infrastructure.security.datascope.DataScopeConditionBuilder;
@@ -42,6 +43,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 class FrontendSystemCompatibilityControllerTest {
+
+    private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
     private SystemUserService systemUserService;
     private SystemUserMapper systemUserMapper;
@@ -79,7 +82,8 @@ class FrontendSystemCompatibilityControllerTest {
             systemDepartmentMapper,
             menuService,
             menuMapper,
-            dataScopeConditionBuilder
+            dataScopeConditionBuilder,
+            objectMapper
         );
     }
 

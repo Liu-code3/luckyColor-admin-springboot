@@ -8,6 +8,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.luckycolor.admin.modules.system.menu.dataobject.MenuDO;
 import com.luckycolor.admin.modules.system.menu.mapper.MenuMapper;
 import com.luckycolor.admin.modules.system.menu.service.impl.MenuServiceImpl;
@@ -23,6 +24,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 class MenuServiceImplTest {
 
+    private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
+
     @Test
     void shouldReturnMenuTreeSortedByParentAndSort() {
         MenuMapper mapper = Mockito.mock(MenuMapper.class);
@@ -31,7 +34,7 @@ class MenuServiceImplTest {
             menu(1L, 0L, "System", 1),
             menu(3L, 1L, "System User", 1)
         ));
-        MenuService service = new MenuServiceImpl(mapper);
+        MenuService service = new MenuServiceImpl(mapper, objectMapper);
 
         List<MenuTreeResponse> result = service.listMenuTree(new MenuTreeQuery());
 
@@ -48,7 +51,7 @@ class MenuServiceImplTest {
         menu.setRoleCodes("ROLE_SUPER_ADMIN,ROLE_ADMIN");
         menu.setRemark("default");
         when(mapper.selectById(1L)).thenReturn(menu);
-        MenuService service = new MenuServiceImpl(mapper);
+        MenuService service = new MenuServiceImpl(mapper, objectMapper);
 
         MenuDetailResponse result = service.getMenu(1L);
 
@@ -61,7 +64,7 @@ class MenuServiceImplTest {
     void shouldThrowWhenMenuNotFound() {
         MenuMapper mapper = Mockito.mock(MenuMapper.class);
         when(mapper.selectById(99L)).thenReturn(null);
-        MenuService service = new MenuServiceImpl(mapper);
+        MenuService service = new MenuServiceImpl(mapper, objectMapper);
 
         assertThatThrownBy(() -> service.getMenu(99L))
             .isInstanceOf(ResponseStatusException.class)
@@ -73,7 +76,7 @@ class MenuServiceImplTest {
         MenuMapper mapper = Mockito.mock(MenuMapper.class);
         when(mapper.selectById(0L)).thenReturn(null);
         when(mapper.selectList(any())).thenReturn(List.of());
-        MenuService service = new MenuServiceImpl(mapper);
+        MenuService service = new MenuServiceImpl(mapper, objectMapper);
 
         Long result = service.createMenu(buildSaveRequest());
 
@@ -86,7 +89,7 @@ class MenuServiceImplTest {
         MenuMapper mapper = Mockito.mock(MenuMapper.class);
         MenuDO menu = menu(1L, 0L, "Dashboard", 1);
         when(mapper.selectById(1L)).thenReturn(menu);
-        MenuService service = new MenuServiceImpl(mapper);
+        MenuService service = new MenuServiceImpl(mapper, objectMapper);
         MenuStatusRequest request = new MenuStatusRequest();
         request.setStatus(1);
 
@@ -101,7 +104,7 @@ class MenuServiceImplTest {
         MenuMapper mapper = Mockito.mock(MenuMapper.class);
         when(mapper.selectById(1L)).thenReturn(menu(1L, 0L, "System", 1));
         when(mapper.selectCount(any())).thenReturn(1L);
-        MenuService service = new MenuServiceImpl(mapper);
+        MenuService service = new MenuServiceImpl(mapper, objectMapper);
 
         assertThatThrownBy(() -> service.deleteMenu(1L))
             .isInstanceOf(ResponseStatusException.class)
@@ -115,7 +118,7 @@ class MenuServiceImplTest {
         MenuMapper mapper = Mockito.mock(MenuMapper.class);
         when(mapper.selectById(1L)).thenReturn(menu(1L, 0L, "System", 1));
         when(mapper.selectCount(any())).thenReturn(0L);
-        MenuService service = new MenuServiceImpl(mapper);
+        MenuService service = new MenuServiceImpl(mapper, objectMapper);
 
         service.deleteMenu(1L);
 
@@ -130,9 +133,13 @@ class MenuServiceImplTest {
         menu.setMenuType("MENU");
         menu.setRouteName(menuName.replace(" ", ""));
         menu.setRoutePath("/" + menuName.toLowerCase().replace(" ", "-"));
+        menu.setMenuKey("menu:" + id);
         menu.setComponent("system/" + id);
+        menu.setRedirect(null);
+        menu.setMeta("{\"title\":\"" + menuName + "\",\"keepAlive\":false,\"hidden\":false}");
         menu.setPermissionCode("system:menu:query");
         menu.setSort(sort);
+        menu.setLayout("default");
         menu.setVisible(1);
         menu.setKeepAlive(0);
         menu.setAlwaysShow(0);
@@ -147,8 +154,11 @@ class MenuServiceImplTest {
         request.setMenuType("MENU");
         request.setRouteName("SystemUser");
         request.setRoutePath("users");
+        request.setMenuKey("main_system_users");
         request.setComponent("system/user/index");
+        request.setMeta(java.util.Map.of("title", "System User", "keepAlive", true));
         request.setPermissionCode("system:user:query");
+        request.setLayout("default");
         request.setRoleCodes(List.of("ROLE_SUPER_ADMIN"));
         request.setSort(1);
         request.setVisible(1);

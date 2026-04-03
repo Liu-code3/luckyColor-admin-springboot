@@ -33,10 +33,14 @@ class MenuControllerTest {
                 "DIRECTORY",
                 "System",
                 "/system",
+                "main_system",
                 "Layout",
+                null,
+                java.util.Map.of("title", "System"),
                 null,
                 List.of(),
                 "setting",
+                "default",
                 1,
                 1,
                 0,
@@ -49,10 +53,14 @@ class MenuControllerTest {
                     "MENU",
                     "SystemUser",
                     "users",
+                    "main_system_users",
                     "system/user/index",
+                    null,
+                    java.util.Map.of("title", "System User"),
                     "system:user:query",
                     List.of("ROLE_SUPER_ADMIN"),
                     null,
+                    "default",
                     1,
                     1,
                     1,
@@ -66,7 +74,7 @@ class MenuControllerTest {
 
         mockMvc.perform(get("/admin/menus/tree").param("menuName", "System"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.code").value(0))
+            .andExpect(jsonPath("$.code").value(200))
             .andExpect(jsonPath("$.data[0].menuName").value("System"))
             .andExpect(jsonPath("$.data[0].children[0].menuName").value("System User"));
     }
@@ -81,10 +89,14 @@ class MenuControllerTest {
             "MENU",
             "Dashboard",
             "/dashboard",
+            "dashboard",
             "dashboard/index",
+            null,
+            java.util.Map.of("title", "Dashboard"),
             "dashboard:view",
             List.of("ROLE_SUPER_ADMIN"),
             "dashboard",
+            "default",
             1,
             1,
             1,
@@ -96,7 +108,7 @@ class MenuControllerTest {
 
         mockMvc.perform(get("/admin/menus/1"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.code").value(0))
+            .andExpect(jsonPath("$.code").value(200))
             .andExpect(jsonPath("$.data.menuName").value("Dashboard"))
             .andExpect(jsonPath("$.data.roleCodes[0]").value("ROLE_SUPER_ADMIN"));
     }
@@ -110,7 +122,7 @@ class MenuControllerTest {
         mockMvc.perform(post("/admin/menus")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                    {"parentId":0,"menuName":"System User","menuType":"MENU","routeName":"SystemUser","routePath":"users","component":"system/user/index","permissionCode":"system:user:query","roleCodes":["ROLE_SUPER_ADMIN"],"sort":1,"visible":1,"keepAlive":1,"alwaysShow":0,"status":0}
+                    {"parentId":0,"menuName":"System User","menuType":"MENU","routeName":"SystemUser","routePath":"users","menuKey":"main_system_users","component":"system/user/index","redirect":"/system/users/list","meta":{"title":"System User","keepAlive":true},"permissionCode":"system:user:query","roleCodes":["ROLE_SUPER_ADMIN"],"layout":"default","sort":1,"visible":1,"keepAlive":1,"alwaysShow":0,"status":0}
                     """))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data").value(1));

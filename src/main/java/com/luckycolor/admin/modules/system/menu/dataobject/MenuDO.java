@@ -20,13 +20,21 @@ public class MenuDO extends BaseDO {
 
     private String routePath;
 
+    private String menuKey;
+
     private String component;
+
+    private String redirect;
+
+    private String meta;
 
     private String permissionCode;
 
     private String roleCodes;
 
     private String icon;
+
+    private String layout;
 
     private Integer sort;
 

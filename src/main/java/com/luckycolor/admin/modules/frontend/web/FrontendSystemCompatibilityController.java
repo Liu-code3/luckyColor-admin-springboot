@@ -1,6 +1,9 @@
 package com.luckycolor.admin.modules.frontend.web;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.luckycolor.admin.common.api.ApiResponse;
 import com.luckycolor.admin.common.config.ConditionalOnPersistenceEnabled;
 import com.luckycolor.admin.common.page.PageQuery;
@@ -81,6 +84,7 @@ public class FrontendSystemCompatibilityController {
     private final MenuService menuService;
     private final MenuMapper menuMapper;
     private final DataScopeConditionBuilder dataScopeConditionBuilder;
+    private final ObjectMapper objectMapper;
 
     public FrontendSystemCompatibilityController(
         SystemUserService systemUserService,
@@ -91,7 +95,8 @@ public class FrontendSystemCompatibilityController {
         SystemDepartmentMapper systemDepartmentMapper,
         MenuService menuService,
         MenuMapper menuMapper,
-        DataScopeConditionBuilder dataScopeConditionBuilder
+        DataScopeConditionBuilder dataScopeConditionBuilder,
+        ObjectMapper objectMapper
     ) {
         this.systemUserService = systemUserService;
         this.systemUserMapper = systemUserMapper;
@@ -102,6 +107,7 @@ public class FrontendSystemCompatibilityController {
         this.menuService = menuService;
         this.menuMapper = menuMapper;
         this.dataScopeConditionBuilder = dataScopeConditionBuilder;
+        this.objectMapper = objectMapper;
     }
 
     @GetMapping("/users")
@@ -594,6 +600,7 @@ public class FrontendSystemCompatibilityController {
         boolean keepAlive = menu.getKeepAlive() != null && menu.getKeepAlive() == 1;
         boolean isVisible = menu.getVisible() == null || menu.getVisible() == 1;
         String menuKey = resolveMenuKey(menu);
+        Map<String, Object> meta = resolveMenuMeta(menu, keepAlive, isVisible);
         return new FrontendMenuRecord(
             normalizeParentId(menu.getParentId()),
             menu.getId(),
@@ -604,12 +611,12 @@ public class FrontendSystemCompatibilityController {
             menuKey,
             resolvePermissionCode(menu, menuKey),
             defaultString(menu.getIcon(), ""),
-            "default",
+            defaultString(menu.getLayout(), "default"),
             isVisible,
             menu.getStatus() == null || menu.getStatus() == 0,
             defaultString(menu.getComponent(), ""),
-            null,
-            buildMenuMeta(menu.getMenuName(), keepAlive, !isVisible),
+            emptyToNull(menu.getRedirect()),
+            meta,
             menu.getSort() == null ? 0 : menu.getSort(),
             toIsoInstant(menu.getCreateTime()),
             toIsoInstant(menu.getUpdateTime()),
@@ -846,7 +853,15 @@ public class FrontendSystemCompatibilityController {
         nativeRequest.setMenuType(toNativeMenuType(request.getType()));
         nativeRequest.setRouteName(request.getName().trim());
         nativeRequest.setRoutePath(request.getPath().trim());
+        nativeRequest.setMenuKey(emptyToNull(request.getMenuKey()));
         nativeRequest.setComponent(request.getComponent().trim());
+        nativeRequest.setRedirect(emptyToNull(request.getRedirect()));
+        nativeRequest.setMeta(normalizeMenuMeta(
+            request.getMeta(),
+            request.getTitle().trim(),
+            request.getIsVisible() == null || request.getIsVisible(),
+            resolveKeepAlive(request.getMeta(), 1) == 1
+        ));
         nativeRequest.setPermissionCode(resolveRequestedPermissionCode(request.getMenuKey(), request.getPermissionCode()));
         nativeRequest.setRoleCodes(List.of());
         nativeRequest.setIcon(emptyToNull(request.getIcon()));
@@ -855,6 +870,7 @@ public class FrontendSystemCompatibilityController {
         nativeRequest.setKeepAlive(resolveKeepAlive(request.getMeta(), 1));
         nativeRequest.setAlwaysShow(0);
         nativeRequest.setStatus(toNativeStatus(request.getStatus(), true));
+        nativeRequest.setLayout(emptyToNull(request.getLayout()) == null ? "default" : emptyToNull(request.getLayout()));
         nativeRequest.setRemark(null);
         return nativeRequest;
     }
@@ -866,15 +882,26 @@ public class FrontendSystemCompatibilityController {
         nativeRequest.setMenuType(request.getType() != null ? toNativeMenuType(request.getType()) : current.getMenuType());
         nativeRequest.setRouteName(resolveString(request.getName(), current.getRouteName()));
         nativeRequest.setRoutePath(resolveString(request.getPath(), current.getRoutePath()));
+        nativeRequest.setMenuKey(request.getMenuKey() != null ? emptyToNull(request.getMenuKey()) : current.getMenuKey());
         nativeRequest.setComponent(resolveString(request.getComponent(), current.getComponent()));
+        nativeRequest.setRedirect(request.getRedirect() != null ? emptyToNull(request.getRedirect()) : current.getRedirect());
+        boolean isVisible = request.getIsVisible() != null ? request.getIsVisible() : current.getVisible() == null || current.getVisible() == 1;
+        int keepAlive = resolveKeepAlive(request.getMeta(), defaultInteger(current.getKeepAlive(), 1));
+        nativeRequest.setMeta(normalizeMenuMeta(
+            request.getMeta() != null ? request.getMeta() : parseMenuMeta(current.getMeta()),
+            nativeRequest.getMenuName(),
+            isVisible,
+            keepAlive == 1
+        ));
         nativeRequest.setPermissionCode(resolvePatchedPermissionCode(current, request));
         nativeRequest.setRoleCodes(splitCodes(current.getRoleCodes()));
         nativeRequest.setIcon(request.getIcon() != null ? emptyToNull(request.getIcon()) : current.getIcon());
         nativeRequest.setSort(request.getSort() != null ? request.getSort() : defaultInteger(current.getSort(), 0));
-        nativeRequest.setVisible(request.getIsVisible() != null ? toNativeVisible(request.getIsVisible(), true) : defaultInteger(current.getVisible(), 1));
-        nativeRequest.setKeepAlive(resolveKeepAlive(request.getMeta(), defaultInteger(current.getKeepAlive(), 1)));
+        nativeRequest.setVisible(toNativeVisible(isVisible, true));
+        nativeRequest.setKeepAlive(keepAlive);
         nativeRequest.setAlwaysShow(defaultInteger(current.getAlwaysShow(), 0));
         nativeRequest.setStatus(request.getStatus() != null ? toNativeStatus(request.getStatus(), true) : defaultInteger(current.getStatus(), 0));
+        nativeRequest.setLayout(request.getLayout() != null ? emptyToNull(request.getLayout()) : current.getLayout());
         nativeRequest.setRemark(current.getRemark());
         return nativeRequest;
     }
@@ -1150,6 +1177,9 @@ public class FrontendSystemCompatibilityController {
         if (menu == null) {
             return null;
         }
+        if (StringUtils.hasText(menu.getMenuKey())) {
+            return menu.getMenuKey().trim();
+        }
         if (StringUtils.hasText(menu.getPermissionCode())) {
             return menu.getPermissionCode().trim();
         }
@@ -1189,6 +1219,39 @@ public class FrontendSystemCompatibilityController {
             return value ? 1 : 0;
         }
         return fallback;
+    }
+
+    private Map<String, Object> resolveMenuMeta(MenuDO menu, boolean keepAlive, boolean isVisible) {
+        Map<String, Object> meta = normalizeMenuMeta(parseMenuMeta(menu.getMeta()), menu.getMenuName(), isVisible, keepAlive);
+        return meta.isEmpty() ? null : meta;
+    }
+
+    private Map<String, Object> normalizeMenuMeta(
+        Map<String, Object> source,
+        String title,
+        boolean isVisible,
+        boolean keepAlive
+    ) {
+        Map<String, Object> values = new LinkedHashMap<>();
+        if (source != null && !source.isEmpty()) {
+            values.putAll(source);
+        }
+        values.put("title", title);
+        values.put("keepAlive", keepAlive);
+        values.put("hidden", !isVisible);
+        return values;
+    }
+
+    private Map<String, Object> parseMenuMeta(String value) {
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+        try {
+            return objectMapper.readValue(value, new TypeReference<Map<String, Object>>() {
+            });
+        } catch (JsonProcessingException exception) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to parse menu meta", exception);
+        }
     }
 
     private Map<String, Object> buildMenuMeta(String title, boolean keepAlive, boolean hidden) {

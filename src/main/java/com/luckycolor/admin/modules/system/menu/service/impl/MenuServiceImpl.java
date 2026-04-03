@@ -1,6 +1,9 @@
 package com.luckycolor.admin.modules.system.menu.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.luckycolor.admin.infrastructure.tenant.annotation.TenantIgnore;
 import com.luckycolor.admin.modules.system.menu.dataobject.MenuDO;
 import com.luckycolor.admin.modules.system.menu.mapper.MenuMapper;
@@ -12,7 +15,7 @@ import com.luckycolor.admin.modules.system.menu.web.response.MenuDetailResponse;
 import com.luckycolor.admin.modules.system.menu.web.response.MenuTreeResponse;
 import java.util.Comparator;
 import java.util.List;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import com.luckycolor.admin.common.config.ConditionalOnPersistenceEnabled;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -20,13 +23,15 @@ import org.springframework.web.server.ResponseStatusException;
 
 @Service
 @TenantIgnore
-@ConditionalOnBean(MenuMapper.class)
+@ConditionalOnPersistenceEnabled
 public class MenuServiceImpl implements MenuService {
 
     private final MenuMapper menuMapper;
+    private final ObjectMapper objectMapper;
 
-    public MenuServiceImpl(MenuMapper menuMapper) {
+    public MenuServiceImpl(MenuMapper menuMapper, ObjectMapper objectMapper) {
         this.menuMapper = menuMapper;
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -105,10 +110,14 @@ public class MenuServiceImpl implements MenuService {
             menu.getMenuType(),
             menu.getRouteName(),
             menu.getRoutePath(),
+            menu.getMenuKey(),
             menu.getComponent(),
+            menu.getRedirect(),
+            parseMeta(menu.getMeta()),
             menu.getPermissionCode(),
             splitCodes(menu.getRoleCodes()),
             menu.getIcon(),
+            menu.getLayout(),
             menu.getSort(),
             menu.getVisible(),
             menu.getKeepAlive(),
@@ -126,10 +135,14 @@ public class MenuServiceImpl implements MenuService {
             menu.getMenuType(),
             menu.getRouteName(),
             menu.getRoutePath(),
+            menu.getMenuKey(),
             menu.getComponent(),
+            menu.getRedirect(),
+            parseMeta(menu.getMeta()),
             menu.getPermissionCode(),
             splitCodes(menu.getRoleCodes()),
             menu.getIcon(),
+            menu.getLayout(),
             menu.getSort(),
             menu.getVisible(),
             menu.getKeepAlive(),
@@ -176,16 +189,43 @@ public class MenuServiceImpl implements MenuService {
         menu.setMenuType(request.getMenuType());
         menu.setRouteName(request.getRouteName());
         menu.setRoutePath(request.getRoutePath());
+        menu.setMenuKey(request.getMenuKey());
         menu.setComponent(request.getComponent());
+        menu.setRedirect(request.getRedirect());
+        menu.setMeta(writeMeta(request.getMeta()));
         menu.setPermissionCode(request.getPermissionCode());
         menu.setRoleCodes(joinCodes(request.getRoleCodes()));
         menu.setIcon(request.getIcon());
+        menu.setLayout(request.getLayout());
         menu.setSort(request.getSort());
         menu.setVisible(request.getVisible());
         menu.setKeepAlive(request.getKeepAlive());
         menu.setAlwaysShow(request.getAlwaysShow());
         menu.setStatus(request.getStatus());
         menu.setRemark(request.getRemark());
+    }
+
+    private java.util.Map<String, Object> parseMeta(String value) {
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+        try {
+            return objectMapper.readValue(value, new TypeReference<java.util.Map<String, Object>>() {
+            });
+        } catch (JsonProcessingException exception) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to parse menu meta", exception);
+        }
+    }
+
+    private String writeMeta(java.util.Map<String, Object> value) {
+        if (value == null || value.isEmpty()) {
+            return null;
+        }
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (JsonProcessingException exception) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Failed to serialize menu meta", exception);
+        }
     }
 
     private String joinCodes(List<String> roleCodes) {
