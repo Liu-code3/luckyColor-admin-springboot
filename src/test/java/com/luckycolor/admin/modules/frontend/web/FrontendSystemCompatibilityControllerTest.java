@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.luckycolor.admin.common.page.PageQuery;
 import com.luckycolor.admin.common.page.PageResult;
 import com.luckycolor.admin.infrastructure.security.datascope.DataScopeConditionBuilder;
+import com.luckycolor.admin.infrastructure.tenant.core.TenantContextHolder;
 import com.luckycolor.admin.modules.system.department.dataobject.SystemDepartmentDO;
 import com.luckycolor.admin.modules.system.department.mapper.SystemDepartmentMapper;
 import com.luckycolor.admin.modules.system.department.service.SystemDepartmentService;
@@ -31,6 +32,7 @@ import com.luckycolor.admin.modules.system.user.service.SystemUserService;
 import com.luckycolor.admin.modules.system.user.web.request.SystemUserAssignRolesRequest;
 import java.time.LocalDateTime;
 import java.util.List;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -50,6 +52,11 @@ class FrontendSystemCompatibilityControllerTest {
     private MenuMapper menuMapper;
     private DataScopeConditionBuilder dataScopeConditionBuilder;
     private FrontendSystemCompatibilityController controller;
+
+    @AfterEach
+    void tearDown() {
+        TenantContextHolder.clear();
+    }
 
     @BeforeEach
     void setUp() {
@@ -340,6 +347,126 @@ class FrontendSystemCompatibilityControllerTest {
             .andExpect(jsonPath("$.data.records[0].path").value("/dashboard"))
             .andExpect(jsonPath("$.data.records[0].key").value("dashboard:query"))
             .andExpect(jsonPath("$.data.records[0].permissionCode").value("dashboard:query"));
+    }
+
+    @Test
+    void shouldFilterTenantMenuTreeAndKeepAncestors() {
+        TenantContextHolder.setTenantId(1L);
+
+        MenuDO systemRoot = new MenuDO();
+        systemRoot.setId(10L);
+        systemRoot.setParentId(0L);
+        systemRoot.setMenuName("System");
+        systemRoot.setMenuType("DIRECTORY");
+        systemRoot.setRouteName("System");
+        systemRoot.setRoutePath("/system");
+        systemRoot.setComponent("Layout");
+        systemRoot.setSort(1);
+        systemRoot.setVisible(1);
+        systemRoot.setStatus(0);
+
+        MenuDO systemUser = new MenuDO();
+        systemUser.setId(11L);
+        systemUser.setParentId(10L);
+        systemUser.setMenuName("System User");
+        systemUser.setMenuType("MENU");
+        systemUser.setRouteName("SystemUser");
+        systemUser.setRoutePath("users");
+        systemUser.setComponent("system/user/index");
+        systemUser.setPermissionCode("system:user:query");
+        systemUser.setSort(1);
+        systemUser.setVisible(1);
+        systemUser.setStatus(0);
+
+        MenuDO tenantPackage = new MenuDO();
+        tenantPackage.setId(20L);
+        tenantPackage.setParentId(0L);
+        tenantPackage.setMenuName("Tenant Package");
+        tenantPackage.setMenuType("MENU");
+        tenantPackage.setRouteName("TenantPackage");
+        tenantPackage.setRoutePath("/tenant/package");
+        tenantPackage.setComponent("tenant/package/index");
+        tenantPackage.setPermissionCode("tenant:package:query");
+        tenantPackage.setSort(2);
+        tenantPackage.setVisible(1);
+        tenantPackage.setStatus(0);
+
+        SystemRoleDO tenantRole = role(1L, "tenant_admin", "Tenant Admin");
+        tenantRole.setTenantId(1L);
+        tenantRole.setMenuIds("11");
+
+        SystemRoleDO otherTenantRole = role(2L, "other_tenant_admin", "Other Tenant Admin");
+        otherTenantRole.setTenantId(2L);
+        otherTenantRole.setMenuIds("20");
+
+        when(menuMapper.selectList(any())).thenReturn(List.of(systemRoot, systemUser, tenantPackage));
+        when(systemRoleMapper.selectList(any())).thenReturn(List.of(tenantRole));
+
+        List<FrontendSystemCompatibilityController.FrontendMenuRecord> response =
+            controller.menuTree("tenant", null).data();
+
+        assertThat(response).extracting(FrontendSystemCompatibilityController.FrontendMenuRecord::id)
+            .containsExactly(10L);
+        assertThat(response.get(0).children()).extracting(FrontendSystemCompatibilityController.FrontendMenuRecord::id)
+            .containsExactly(11L);
+    }
+
+    @Test
+    void shouldFilterRoleScopedMenuTreeAndKeepAncestors() {
+        TenantContextHolder.setTenantId(1L);
+
+        MenuDO systemRoot = new MenuDO();
+        systemRoot.setId(10L);
+        systemRoot.setParentId(0L);
+        systemRoot.setMenuName("System");
+        systemRoot.setMenuType("DIRECTORY");
+        systemRoot.setRouteName("System");
+        systemRoot.setRoutePath("/system");
+        systemRoot.setComponent("Layout");
+        systemRoot.setSort(1);
+        systemRoot.setVisible(1);
+        systemRoot.setStatus(0);
+
+        MenuDO systemUser = new MenuDO();
+        systemUser.setId(11L);
+        systemUser.setParentId(10L);
+        systemUser.setMenuName("System User");
+        systemUser.setMenuType("MENU");
+        systemUser.setRouteName("SystemUser");
+        systemUser.setRoutePath("users");
+        systemUser.setComponent("system/user/index");
+        systemUser.setPermissionCode("system:user:query");
+        systemUser.setSort(1);
+        systemUser.setVisible(1);
+        systemUser.setStatus(0);
+
+        MenuDO tenantPackage = new MenuDO();
+        tenantPackage.setId(20L);
+        tenantPackage.setParentId(0L);
+        tenantPackage.setMenuName("Tenant Package");
+        tenantPackage.setMenuType("MENU");
+        tenantPackage.setRouteName("TenantPackage");
+        tenantPackage.setRoutePath("/tenant/package");
+        tenantPackage.setComponent("tenant/package/index");
+        tenantPackage.setPermissionCode("tenant:package:query");
+        tenantPackage.setSort(2);
+        tenantPackage.setVisible(1);
+        tenantPackage.setStatus(0);
+
+        SystemRoleDO role = role(9L, "tenant_admin", "Tenant Admin");
+        role.setTenantId(1L);
+        role.setMenuIds("11");
+
+        when(menuMapper.selectList(any())).thenReturn(List.of(systemRoot, systemUser, tenantPackage));
+        when(systemRoleMapper.selectById(9L)).thenReturn(role);
+
+        List<FrontendSystemCompatibilityController.FrontendMenuRecord> response =
+            controller.menuTree(null, 9L).data();
+
+        assertThat(response).extracting(FrontendSystemCompatibilityController.FrontendMenuRecord::id)
+            .containsExactly(10L);
+        assertThat(response.get(0).children()).extracting(FrontendSystemCompatibilityController.FrontendMenuRecord::id)
+            .containsExactly(11L);
     }
 
     @Test

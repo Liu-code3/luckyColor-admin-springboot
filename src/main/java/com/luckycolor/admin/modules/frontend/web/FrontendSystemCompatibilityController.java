@@ -8,6 +8,7 @@ import com.luckycolor.admin.common.page.PageResult;
 import com.luckycolor.admin.infrastructure.security.authorization.RequirePermission;
 import com.luckycolor.admin.infrastructure.security.datascope.DataScopeConditionBuilder;
 import com.luckycolor.admin.infrastructure.tenant.core.TenantIgnoreContextHolder;
+import com.luckycolor.admin.infrastructure.tenant.core.TenantContextHolder;
 import com.luckycolor.admin.modules.system.department.dataobject.SystemDepartmentDO;
 import com.luckycolor.admin.modules.system.department.mapper.SystemDepartmentMapper;
 import com.luckycolor.admin.modules.system.department.service.SystemDepartmentService;
@@ -373,10 +374,13 @@ public class FrontendSystemCompatibilityController {
 
     @GetMapping("/menus/tree")
     @RequirePermission("system:menu:query")
-    public ApiResponse<List<FrontendMenuRecord>> menuTree() {
+    public ApiResponse<List<FrontendMenuRecord>> menuTree(
+        @RequestParam(value = "view", required = false) String view,
+        @RequestParam(value = "roleId", required = false) Long roleId
+    ) {
         List<MenuDO> nativeMenus = listMenus();
-        List<FrontendMenuRecord> frontendMenus = buildMenuTree(nativeMenus, 0L, null);
-        return ApiResponse.success(frontendMenus);
+        List<MenuDO> scopedMenus = resolveMenuTreeScope(nativeMenus, view, roleId);
+        return ApiResponse.success(buildMenuTree(scopedMenus, 0L, null));
     }
 
     @GetMapping("/menus/{id}")
@@ -656,6 +660,60 @@ public class FrontendSystemCompatibilityController {
                 );
             })
             .toList();
+    }
+
+    private List<MenuDO> resolveMenuTreeScope(List<MenuDO> menus, String view, Long roleId) {
+        if (roleId != null) {
+            Long tenantId = requireCurrentTenantId();
+            return resolveRoleScopedMenus(menus, roleId, tenantId);
+        }
+        if ("tenant".equalsIgnoreCase(defaultString(view, ""))) {
+            Long tenantId = requireCurrentTenantId();
+            return resolveTenantScopedMenus(menus, tenantId);
+        }
+        return menus;
+    }
+
+    private List<MenuDO> resolveRoleScopedMenus(List<MenuDO> menus, Long roleId, Long tenantId) {
+        SystemRoleDO role = systemRoleMapper.selectById(roleId);
+        if (role == null || !Objects.equals(role.getTenantId(), tenantId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Role not found");
+        }
+        return expandMenusWithAncestors(menus, splitLongCodes(role.getMenuIds()));
+    }
+
+    private List<MenuDO> resolveTenantScopedMenus(List<MenuDO> menus, Long tenantId) {
+        LambdaQueryWrapper<SystemRoleDO> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(SystemRoleDO::getTenantId, tenantId);
+        List<SystemRoleDO> roles = systemRoleMapper.selectList(queryWrapper);
+        Set<Long> menuIds = new LinkedHashSet<>();
+        for (SystemRoleDO role : roles) {
+            menuIds.addAll(splitLongCodes(role.getMenuIds()));
+        }
+        return expandMenusWithAncestors(menus, menuIds);
+    }
+
+    private List<MenuDO> expandMenusWithAncestors(List<MenuDO> menus, Collection<Long> selectedIds) {
+        if (selectedIds == null || selectedIds.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, MenuDO> menusById = menus.stream().collect(Collectors.toMap(MenuDO::getId, item -> item));
+        Set<Long> expandedIds = new LinkedHashSet<>();
+        for (Long selectedId : selectedIds) {
+            MenuDO current = menusById.get(selectedId);
+            while (current != null && expandedIds.add(current.getId())) {
+                Long parentId = normalizeParentId(current.getParentId());
+                current = parentId.equals(0L) ? null : menusById.get(parentId);
+            }
+        }
+        return menus.stream()
+            .filter(menu -> expandedIds.contains(menu.getId()))
+            .toList();
+    }
+
+    private Long requireCurrentTenantId() {
+        return TenantContextHolder.getOptionalTenantId()
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.FORBIDDEN, "Tenant context is required"));
     }
 
     private List<MenuDO> findMenusByIds(List<Long> ids) {
