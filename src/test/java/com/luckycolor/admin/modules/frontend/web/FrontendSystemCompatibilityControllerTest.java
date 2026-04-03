@@ -3,6 +3,7 @@ package com.luckycolor.admin.modules.frontend.web;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -339,6 +340,105 @@ class FrontendSystemCompatibilityControllerTest {
             .andExpect(jsonPath("$.data.records[0].path").value("/dashboard"))
             .andExpect(jsonPath("$.data.records[0].key").value("dashboard:query"))
             .andExpect(jsonPath("$.data.records[0].permissionCode").value("dashboard:query"));
+    }
+
+    @Test
+    void shouldSyncMenusAndReturnLatestTree() {
+        MenuDO dashboard = new MenuDO();
+        dashboard.setId(1L);
+        dashboard.setParentId(0L);
+        dashboard.setMenuName("Dashboard");
+        dashboard.setMenuType("MENU");
+        dashboard.setRouteName("Dashboard");
+        dashboard.setRoutePath("/dashboard");
+        dashboard.setComponent("dashboard/index");
+        dashboard.setPermissionCode("dashboard:query");
+        dashboard.setSort(1);
+        dashboard.setVisible(1);
+        dashboard.setKeepAlive(1);
+        dashboard.setStatus(0);
+
+        MenuDO systemRoot = new MenuDO();
+        systemRoot.setId(10L);
+        systemRoot.setParentId(0L);
+        systemRoot.setMenuName("System");
+        systemRoot.setMenuType("DIRECTORY");
+        systemRoot.setRouteName("System");
+        systemRoot.setRoutePath("/system");
+        systemRoot.setComponent("Layout");
+        systemRoot.setSort(10);
+        systemRoot.setVisible(1);
+        systemRoot.setKeepAlive(0);
+        systemRoot.setStatus(0);
+
+        MenuDO systemUser = new MenuDO();
+        systemUser.setId(11L);
+        systemUser.setParentId(10L);
+        systemUser.setMenuName("System User");
+        systemUser.setMenuType("MENU");
+        systemUser.setRouteName("SystemUser");
+        systemUser.setRoutePath("users");
+        systemUser.setComponent("system/user/index");
+        systemUser.setPermissionCode("system:user:query");
+        systemUser.setSort(5);
+        systemUser.setVisible(1);
+        systemUser.setKeepAlive(1);
+        systemUser.setStatus(0);
+
+        MenuDO syncedDashboard = cloneMenu(dashboard);
+        syncedDashboard.setSort(3);
+
+        MenuDO syncedSystemRoot = cloneMenu(systemRoot);
+
+        MenuDO syncedSystemUser = cloneMenu(systemUser);
+        syncedSystemUser.setParentId(0L);
+        syncedSystemUser.setSort(2);
+
+        when(menuMapper.selectList(any())).thenReturn(
+            List.of(dashboard, systemRoot, systemUser),
+            List.of(syncedDashboard, syncedSystemRoot, syncedSystemUser)
+        );
+
+        FrontendSystemCompatibilityController.FrontendMenuSyncRequest request =
+            new FrontendSystemCompatibilityController.FrontendMenuSyncRequest();
+        FrontendSystemCompatibilityController.FrontendMenuSyncItemRequest first =
+            new FrontendSystemCompatibilityController.FrontendMenuSyncItemRequest();
+        first.setId(11L);
+        first.setParentId(0L);
+        first.setSort(2);
+        FrontendSystemCompatibilityController.FrontendMenuSyncItemRequest second =
+            new FrontendSystemCompatibilityController.FrontendMenuSyncItemRequest();
+        second.setId(1L);
+        second.setParentId(0L);
+        second.setSort(3);
+        request.setMenus(List.of(first, second));
+
+        List<FrontendSystemCompatibilityController.FrontendMenuRecord> response =
+            controller.syncMenus(request).data();
+
+        verify(menuMapper, times(2)).updateById(any(MenuDO.class));
+        assertThat(response).extracting(FrontendSystemCompatibilityController.FrontendMenuRecord::id)
+            .containsExactly(11L, 1L, 10L);
+        assertThat(response.get(0).pid()).isEqualTo(0L);
+        assertThat(response.get(0).path()).isEqualTo("/users");
+        assertThat(response.get(0).sort()).isEqualTo(2);
+    }
+
+    private MenuDO cloneMenu(MenuDO source) {
+        MenuDO target = new MenuDO();
+        target.setId(source.getId());
+        target.setParentId(source.getParentId());
+        target.setMenuName(source.getMenuName());
+        target.setMenuType(source.getMenuType());
+        target.setRouteName(source.getRouteName());
+        target.setRoutePath(source.getRoutePath());
+        target.setComponent(source.getComponent());
+        target.setPermissionCode(source.getPermissionCode());
+        target.setSort(source.getSort());
+        target.setVisible(source.getVisible());
+        target.setKeepAlive(source.getKeepAlive());
+        target.setStatus(source.getStatus());
+        return target;
     }
 
     private SystemRoleDO role(Long id, String code, String name) {

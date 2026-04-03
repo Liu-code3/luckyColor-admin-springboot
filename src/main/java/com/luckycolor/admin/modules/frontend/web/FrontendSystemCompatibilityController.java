@@ -37,6 +37,7 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -50,6 +51,7 @@ import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.http.HttpStatus;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -401,6 +403,24 @@ public class FrontendSystemCompatibilityController {
         MenuDO current = getRequiredMenu(id);
         menuService.updateMenu(id, mergeMenuSaveRequest(current, request));
         return getMenu(id);
+    }
+
+    @PutMapping("/menus/sync")
+    @RequirePermission("system:menu:update")
+    @Transactional
+    public ApiResponse<List<FrontendMenuRecord>> syncMenus(
+        @Valid @RequestBody FrontendMenuSyncRequest request
+    ) {
+        List<MenuDO> currentMenus = listMenus();
+        Map<Long, MenuDO> menusById = currentMenus.stream().collect(Collectors.toMap(MenuDO::getId, item -> item));
+        validateSyncRequest(request.getMenus(), menusById);
+        for (FrontendMenuSyncItemRequest item : request.getMenus()) {
+            MenuDO menu = menusById.get(item.getId());
+            menu.setParentId(normalizeParentId(item.getParentId()));
+            menu.setSort(item.getSort());
+            menuMapper.updateById(menu);
+        }
+        return ApiResponse.success(buildMenuTree(listMenus(), 0L, null));
     }
 
     @PatchMapping("/menus/{id}/status")
@@ -983,6 +1003,48 @@ public class FrontendSystemCompatibilityController {
             .collect(Collectors.joining(","));
     }
 
+    private void validateSyncRequest(List<FrontendMenuSyncItemRequest> items, Map<Long, MenuDO> menusById) {
+        Set<Long> uniqueIds = new LinkedHashSet<>();
+        for (FrontendMenuSyncItemRequest item : items) {
+            if (!uniqueIds.add(item.getId())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Duplicate menu id in sync payload");
+            }
+            if (!menusById.containsKey(item.getId())) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Menu not found");
+            }
+        }
+        Map<Long, Long> nextParentIds = menusById.values().stream()
+            .collect(Collectors.toMap(MenuDO::getId, menu -> normalizeParentId(menu.getParentId())));
+        for (FrontendMenuSyncItemRequest item : items) {
+            Long normalizedParentId = normalizeParentId(item.getParentId());
+            if (!normalizedParentId.equals(0L) && !menusById.containsKey(normalizedParentId)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Parent menu not found");
+            }
+            nextParentIds.put(item.getId(), normalizedParentId);
+        }
+        for (Long menuId : nextParentIds.keySet()) {
+            assertNoMenuCycle(menuId, nextParentIds);
+        }
+    }
+
+    private void assertNoMenuCycle(Long menuId, Map<Long, Long> nextParentIds) {
+        Set<Long> visited = new HashSet<>();
+        Long currentId = menuId;
+        while (true) {
+            Long parentId = normalizeParentId(nextParentIds.get(currentId));
+            if (parentId.equals(0L)) {
+                return;
+            }
+            if (!visited.add(parentId)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Menu hierarchy cycle detected");
+            }
+            if (!nextParentIds.containsKey(parentId)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Parent menu not found");
+            }
+            currentId = parentId;
+        }
+    }
+
     private String resolveMenuPath(MenuDO menu, Map<Long, MenuDO> menusById) {
         String currentPath = defaultString(menu.getRoutePath(), "");
         if (currentPath.startsWith("/")) {
@@ -1477,5 +1539,26 @@ public class FrontendSystemCompatibilityController {
 
         @NotNull
         private Boolean status;
+    }
+
+    @Getter
+    @Setter
+    public static class FrontendMenuSyncRequest {
+
+        @NotEmpty
+        private List<FrontendMenuSyncItemRequest> menus = new ArrayList<>();
+    }
+
+    @Getter
+    @Setter
+    public static class FrontendMenuSyncItemRequest {
+
+        @NotNull
+        private Long id;
+
+        private Long parentId;
+
+        @NotNull
+        private Integer sort;
     }
 }

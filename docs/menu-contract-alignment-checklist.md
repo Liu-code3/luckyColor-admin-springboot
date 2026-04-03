@@ -319,5 +319,5 @@ Spring Boot：
 - [x] Item 2: `/api/auth/access` response model
 - [x] Item 3: `/api/menus` and `/api/menus/tree` NestJS field alignment
 - [x] Item 4: `PATCH /api/menus/{id}/status`
-- [ ] Item 5: `PUT /api/menus/sync`
+- [x] Item 5: `PUT /api/menus/sync`
 - [ ] Item 6: `view` and `roleId` filtering logic
