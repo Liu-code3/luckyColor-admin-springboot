@@ -446,6 +446,58 @@ class FrontendSystemCompatibilityControllerTest {
     }
 
     @Test
+    void shouldExposePersistedMenuContractFields() {
+        MenuDO systemRoot = new MenuDO();
+        systemRoot.setId(10L);
+        systemRoot.setParentId(0L);
+        systemRoot.setMenuName("System");
+        systemRoot.setMenuType("DIRECTORY");
+        systemRoot.setRouteName("System");
+        systemRoot.setRoutePath("/system");
+        systemRoot.setMenuKey("main_system");
+        systemRoot.setComponent("Layout");
+        systemRoot.setRedirect("/system/users");
+        systemRoot.setMeta("{\"badge\":\"ops\"}");
+        systemRoot.setLayout("default");
+        systemRoot.setSort(1);
+        systemRoot.setVisible(1);
+        systemRoot.setKeepAlive(0);
+        systemRoot.setStatus(0);
+
+        MenuDO systemUser = new MenuDO();
+        systemUser.setId(11L);
+        systemUser.setParentId(10L);
+        systemUser.setMenuName("System User");
+        systemUser.setMenuType("MENU");
+        systemUser.setRouteName("SystemUser");
+        systemUser.setRoutePath("users");
+        systemUser.setMenuKey("main_system_users");
+        systemUser.setComponent("system/user/index");
+        systemUser.setRedirect("/system/users/list");
+        systemUser.setMeta("{\"badge\":\"beta\",\"keepAlive\":true}");
+        systemUser.setPermissionCode("system:user:query");
+        systemUser.setLayout("default");
+        systemUser.setSort(1);
+        systemUser.setVisible(1);
+        systemUser.setKeepAlive(1);
+        systemUser.setStatus(0);
+
+        when(menuMapper.selectById(11L)).thenReturn(systemUser);
+        when(menuMapper.selectList(any())).thenReturn(List.of(systemRoot, systemUser));
+
+        FrontendSystemCompatibilityController.FrontendMenuRecord response = controller.getMenu(11L).data();
+
+        assertThat(response.key()).isEqualTo("main_system_users");
+        assertThat(response.permissionCode()).isEqualTo("system:user:query");
+        assertThat(response.layout()).isEqualTo("default");
+        assertThat(response.redirect()).isEqualTo("/system/users/list");
+        assertThat(response.meta()).containsEntry("badge", "beta");
+        assertThat(response.meta()).containsEntry("title", "System User");
+        assertThat(response.meta()).containsEntry("keepAlive", true);
+        assertThat(response.meta()).containsEntry("hidden", false);
+    }
+
+    @Test
     void shouldFilterTenantMenuTreeAndKeepAncestors() {
         TenantContextHolder.setTenantId(1L);
 
@@ -655,9 +707,13 @@ class FrontendSystemCompatibilityControllerTest {
         target.setMenuType(source.getMenuType());
         target.setRouteName(source.getRouteName());
         target.setRoutePath(source.getRoutePath());
+        target.setMenuKey(source.getMenuKey());
         target.setComponent(source.getComponent());
+        target.setRedirect(source.getRedirect());
+        target.setMeta(source.getMeta());
         target.setPermissionCode(source.getPermissionCode());
         target.setSort(source.getSort());
+        target.setLayout(source.getLayout());
         target.setVisible(source.getVisible());
         target.setKeepAlive(source.getKeepAlive());
         target.setStatus(source.getStatus());

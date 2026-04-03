@@ -321,3 +321,6 @@ Spring Boot：
 - [x] Item 4: `PATCH /api/menus/{id}/status`
 - [x] Item 5: `PUT /api/menus/sync`
 - [x] Item 6: `view` and `roleId` filtering logic
+- [x] Item 7: tighten `POST /api/menus` and `PATCH /api/menus/{id}` permission code semantics
+- [x] Item 8: persist `menu_key`, `layout`, `redirect`, and `meta` on `sys_menu`
+- [x] Item 9: backfill built-in `sys_menu` contract data for existing seed rows

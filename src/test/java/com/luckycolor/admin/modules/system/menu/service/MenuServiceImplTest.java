@@ -19,6 +19,7 @@ import com.luckycolor.admin.modules.system.menu.web.response.MenuDetailResponse;
 import com.luckycolor.admin.modules.system.menu.web.response.MenuTreeResponse;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -56,6 +57,9 @@ class MenuServiceImplTest {
         MenuDetailResponse result = service.getMenu(1L);
 
         assertThat(result.menuName()).isEqualTo("Dashboard");
+        assertThat(result.menuKey()).isEqualTo("menu:1");
+        assertThat(result.layout()).isEqualTo("default");
+        assertThat(result.meta()).containsEntry("title", "Dashboard");
         assertThat(result.roleCodes()).containsExactly("ROLE_SUPER_ADMIN", "ROLE_ADMIN");
         assertThat(result.remark()).isEqualTo("default");
     }
@@ -81,7 +85,13 @@ class MenuServiceImplTest {
         Long result = service.createMenu(buildSaveRequest());
 
         assertThat(result).isNull();
-        verify(mapper).insert(any(MenuDO.class));
+        ArgumentCaptor<MenuDO> captor = ArgumentCaptor.forClass(MenuDO.class);
+        verify(mapper).insert(captor.capture());
+        assertThat(captor.getValue().getMenuKey()).isEqualTo("main_system_users");
+        assertThat(captor.getValue().getRedirect()).isEqualTo("/system/users/list");
+        assertThat(captor.getValue().getLayout()).isEqualTo("default");
+        assertThat(captor.getValue().getMeta()).contains("\"title\":\"System User\"");
+        assertThat(captor.getValue().getMeta()).contains("\"keepAlive\":true");
     }
 
     @Test
@@ -156,6 +166,7 @@ class MenuServiceImplTest {
         request.setRoutePath("users");
         request.setMenuKey("main_system_users");
         request.setComponent("system/user/index");
+        request.setRedirect("/system/users/list");
         request.setMeta(java.util.Map.of("title", "System User", "keepAlive", true));
         request.setPermissionCode("system:user:query");
         request.setLayout("default");
