@@ -847,7 +847,7 @@ public class FrontendSystemCompatibilityController {
         nativeRequest.setRouteName(request.getName().trim());
         nativeRequest.setRoutePath(request.getPath().trim());
         nativeRequest.setComponent(request.getComponent().trim());
-        nativeRequest.setPermissionCode(emptyToNull(request.getMenuKey()));
+        nativeRequest.setPermissionCode(resolveRequestedPermissionCode(request.getMenuKey(), request.getPermissionCode()));
         nativeRequest.setRoleCodes(List.of());
         nativeRequest.setIcon(emptyToNull(request.getIcon()));
         nativeRequest.setSort(defaultInteger(request.getSort(), 0));
@@ -867,7 +867,7 @@ public class FrontendSystemCompatibilityController {
         nativeRequest.setRouteName(resolveString(request.getName(), current.getRouteName()));
         nativeRequest.setRoutePath(resolveString(request.getPath(), current.getRoutePath()));
         nativeRequest.setComponent(resolveString(request.getComponent(), current.getComponent()));
-        nativeRequest.setPermissionCode(request.getMenuKey() != null ? emptyToNull(request.getMenuKey()) : current.getPermissionCode());
+        nativeRequest.setPermissionCode(resolvePatchedPermissionCode(current, request));
         nativeRequest.setRoleCodes(splitCodes(current.getRoleCodes()));
         nativeRequest.setIcon(request.getIcon() != null ? emptyToNull(request.getIcon()) : current.getIcon());
         nativeRequest.setSort(request.getSort() != null ? request.getSort() : defaultInteger(current.getSort(), 0));
@@ -877,6 +877,26 @@ public class FrontendSystemCompatibilityController {
         nativeRequest.setStatus(request.getStatus() != null ? toNativeStatus(request.getStatus(), true) : defaultInteger(current.getStatus(), 0));
         nativeRequest.setRemark(current.getRemark());
         return nativeRequest;
+    }
+
+    private String resolveRequestedPermissionCode(String menuKey, String permissionCode) {
+        String normalizedMenuKey = emptyToNull(menuKey);
+        String normalizedPermissionCode = emptyToNull(permissionCode);
+        return normalizedPermissionCode != null ? normalizedPermissionCode : normalizedMenuKey;
+    }
+
+    private String resolvePatchedPermissionCode(MenuDO current, FrontendMenuPatchRequest request) {
+        if (request.getPermissionCode() == null) {
+            return current.getPermissionCode();
+        }
+        String normalizedPermissionCode = emptyToNull(request.getPermissionCode());
+        if (normalizedPermissionCode != null) {
+            return normalizedPermissionCode;
+        }
+        if (request.getMenuKey() != null) {
+            return emptyToNull(request.getMenuKey());
+        }
+        return resolveMenuKey(current);
     }
 
     private List<Long> parseRoleIds(List<String> roleIds) {
@@ -1540,6 +1560,8 @@ public class FrontendSystemCompatibilityController {
 
         private String menuKey;
 
+        private String permissionCode;
+
         private String icon;
 
         private String layout;
@@ -1573,6 +1595,8 @@ public class FrontendSystemCompatibilityController {
         private String path;
 
         private String menuKey;
+
+        private String permissionCode;
 
         private String icon;
 

@@ -20,6 +20,7 @@ import com.luckycolor.admin.modules.system.department.service.SystemDepartmentSe
 import com.luckycolor.admin.modules.system.menu.dataobject.MenuDO;
 import com.luckycolor.admin.modules.system.menu.mapper.MenuMapper;
 import com.luckycolor.admin.modules.system.menu.service.MenuService;
+import com.luckycolor.admin.modules.system.menu.web.request.MenuSaveRequest;
 import com.luckycolor.admin.modules.system.menu.web.request.MenuStatusRequest;
 import com.luckycolor.admin.modules.system.role.dataobject.SystemRoleDO;
 import com.luckycolor.admin.modules.system.role.mapper.SystemRoleMapper;
@@ -214,6 +215,97 @@ class FrontendSystemCompatibilityControllerTest {
         assertThat(captor.getValue().getStatus()).isEqualTo(1);
         assertThat(response.isVisible()).isFalse();
         assertThat(response.status()).isFalse();
+    }
+
+    @Test
+    void shouldPreferExplicitPermissionCodeWhenCreatingMenu() {
+        MenuDO created = new MenuDO();
+        created.setId(21L);
+        created.setParentId(0L);
+        created.setMenuName("System User");
+        created.setMenuType("MENU");
+        created.setRouteName("SystemUser");
+        created.setRoutePath("/system/users");
+        created.setComponent("system/user/index");
+        created.setPermissionCode("system:user:read");
+        created.setSort(1);
+        created.setVisible(1);
+        created.setKeepAlive(1);
+        created.setStatus(0);
+
+        when(menuService.createMenu(any())).thenReturn(21L);
+        when(menuMapper.selectById(21L)).thenReturn(created);
+        when(menuMapper.selectList(any())).thenReturn(List.of(created));
+
+        FrontendSystemCompatibilityController.FrontendMenuUpsertRequest request =
+            new FrontendSystemCompatibilityController.FrontendMenuUpsertRequest();
+        request.setParentId(0L);
+        request.setTitle("System User");
+        request.setName("SystemUser");
+        request.setType(2);
+        request.setPath("/system/users");
+        request.setMenuKey("main_system_users");
+        request.setPermissionCode("system:user:read");
+        request.setIsVisible(true);
+        request.setStatus(true);
+        request.setComponent("system/user/index");
+
+        FrontendSystemCompatibilityController.FrontendMenuRecord response =
+            controller.createMenu(request).data();
+
+        ArgumentCaptor<MenuSaveRequest> captor = ArgumentCaptor.forClass(MenuSaveRequest.class);
+        verify(menuService).createMenu(captor.capture());
+        assertThat(captor.getValue().getPermissionCode()).isEqualTo("system:user:read");
+        assertThat(response.permissionCode()).isEqualTo("system:user:read");
+    }
+
+    @Test
+    void shouldFallbackToMenuKeyWhenPatchPermissionCodeIsBlank() {
+        MenuDO current = new MenuDO();
+        current.setId(18L);
+        current.setParentId(10L);
+        current.setMenuName("System User");
+        current.setMenuType("MENU");
+        current.setRouteName("SystemUser");
+        current.setRoutePath("users");
+        current.setComponent("system/user/index");
+        current.setPermissionCode("system:user:query");
+        current.setSort(1);
+        current.setVisible(1);
+        current.setKeepAlive(1);
+        current.setAlwaysShow(0);
+        current.setStatus(0);
+
+        MenuDO updated = new MenuDO();
+        updated.setId(18L);
+        updated.setParentId(10L);
+        updated.setMenuName("System User");
+        updated.setMenuType("MENU");
+        updated.setRouteName("SystemUser");
+        updated.setRoutePath("users");
+        updated.setComponent("system/user/index");
+        updated.setPermissionCode("main_system_users");
+        updated.setSort(1);
+        updated.setVisible(1);
+        updated.setKeepAlive(1);
+        updated.setAlwaysShow(0);
+        updated.setStatus(0);
+
+        when(menuMapper.selectById(18L)).thenReturn(current, updated);
+        when(menuMapper.selectList(any())).thenReturn(List.of(updated));
+
+        FrontendSystemCompatibilityController.FrontendMenuPatchRequest request =
+            new FrontendSystemCompatibilityController.FrontendMenuPatchRequest();
+        request.setMenuKey("main_system_users");
+        request.setPermissionCode(" ");
+
+        FrontendSystemCompatibilityController.FrontendMenuRecord response =
+            controller.updateMenu(18L, request).data();
+
+        ArgumentCaptor<MenuSaveRequest> captor = ArgumentCaptor.forClass(MenuSaveRequest.class);
+        verify(menuService).updateMenu(eq(18L), captor.capture());
+        assertThat(captor.getValue().getPermissionCode()).isEqualTo("main_system_users");
+        assertThat(response.permissionCode()).isEqualTo("main_system_users");
     }
 
     @Test
