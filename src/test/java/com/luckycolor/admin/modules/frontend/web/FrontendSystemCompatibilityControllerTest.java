@@ -18,6 +18,7 @@ import com.luckycolor.admin.modules.system.department.service.SystemDepartmentSe
 import com.luckycolor.admin.modules.system.menu.dataobject.MenuDO;
 import com.luckycolor.admin.modules.system.menu.mapper.MenuMapper;
 import com.luckycolor.admin.modules.system.menu.service.MenuService;
+import com.luckycolor.admin.modules.system.menu.web.request.MenuStatusRequest;
 import com.luckycolor.admin.modules.system.role.dataobject.SystemRoleDO;
 import com.luckycolor.admin.modules.system.role.mapper.SystemRoleMapper;
 import com.luckycolor.admin.modules.system.role.service.SystemRoleService;
@@ -205,6 +206,53 @@ class FrontendSystemCompatibilityControllerTest {
         assertThat(captor.getValue().getStatus()).isEqualTo(1);
         assertThat(response.isVisible()).isFalse();
         assertThat(response.status()).isFalse();
+    }
+
+    @Test
+    void shouldExposeMenuStatusPatchContract() {
+        MenuDO current = new MenuDO();
+        current.setId(18L);
+        current.setParentId(10L);
+        current.setMenuName("System User");
+        current.setMenuType("MENU");
+        current.setRouteName("SystemUser");
+        current.setRoutePath("users");
+        current.setComponent("system/user/index");
+        current.setPermissionCode("system:user:query");
+        current.setSort(1);
+        current.setVisible(1);
+        current.setKeepAlive(1);
+        current.setStatus(0);
+
+        MenuDO updated = new MenuDO();
+        updated.setId(18L);
+        updated.setParentId(10L);
+        updated.setMenuName("System User");
+        updated.setMenuType("MENU");
+        updated.setRouteName("SystemUser");
+        updated.setRoutePath("users");
+        updated.setComponent("system/user/index");
+        updated.setPermissionCode("system:user:query");
+        updated.setSort(1);
+        updated.setVisible(1);
+        updated.setKeepAlive(1);
+        updated.setStatus(1);
+
+        when(menuMapper.selectById(18L)).thenReturn(current, updated);
+        when(menuMapper.selectList(any())).thenReturn(List.of(updated));
+
+        FrontendSystemCompatibilityController.FrontendMenuStatusRequest request =
+            new FrontendSystemCompatibilityController.FrontendMenuStatusRequest();
+        request.setStatus(false);
+
+        FrontendSystemCompatibilityController.FrontendMenuRecord response =
+            controller.updateMenuStatus(18L, request).data();
+
+        ArgumentCaptor<MenuStatusRequest> captor = ArgumentCaptor.forClass(MenuStatusRequest.class);
+        verify(menuService).updateMenuStatus(eq(18L), captor.capture());
+        assertThat(captor.getValue().getStatus()).isEqualTo(1);
+        assertThat(response.status()).isFalse();
+        assertThat(response.permissionCode()).isEqualTo("system:user:query");
     }
 
     @Test

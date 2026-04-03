@@ -16,6 +16,7 @@ import com.luckycolor.admin.modules.system.menu.dataobject.MenuDO;
 import com.luckycolor.admin.modules.system.menu.mapper.MenuMapper;
 import com.luckycolor.admin.modules.system.menu.service.MenuService;
 import com.luckycolor.admin.modules.system.menu.web.request.MenuSaveRequest;
+import com.luckycolor.admin.modules.system.menu.web.request.MenuStatusRequest;
 import com.luckycolor.admin.modules.system.role.dataobject.SystemRoleDO;
 import com.luckycolor.admin.modules.system.role.mapper.SystemRoleMapper;
 import com.luckycolor.admin.modules.system.role.service.SystemRoleService;
@@ -399,6 +400,19 @@ public class FrontendSystemCompatibilityController {
     ) {
         MenuDO current = getRequiredMenu(id);
         menuService.updateMenu(id, mergeMenuSaveRequest(current, request));
+        return getMenu(id);
+    }
+
+    @PatchMapping("/menus/{id}/status")
+    @RequirePermission("system:menu:update")
+    public ApiResponse<FrontendMenuRecord> updateMenuStatus(
+        @PathVariable Long id,
+        @Valid @RequestBody FrontendMenuStatusRequest request
+    ) {
+        getRequiredMenu(id);
+        MenuStatusRequest nativeRequest = new MenuStatusRequest();
+        nativeRequest.setStatus(toNativeStatus(request.getStatus(), true));
+        menuService.updateMenuStatus(id, nativeRequest);
         return getMenu(id);
     }
 
@@ -1455,5 +1469,13 @@ public class FrontendSystemCompatibilityController {
         private Map<String, Object> meta = new HashMap<>();
 
         private Integer sort;
+    }
+
+    @Getter
+    @Setter
+    public static class FrontendMenuStatusRequest {
+
+        @NotNull
+        private Boolean status;
     }
 }

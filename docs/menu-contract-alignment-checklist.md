@@ -318,6 +318,6 @@ Spring Boot：
 - [x] Item 1: `/api/auth/routes` response model and assembly logic
 - [x] Item 2: `/api/auth/access` response model
 - [x] Item 3: `/api/menus` and `/api/menus/tree` NestJS field alignment
-- [ ] Item 4: `PATCH /api/menus/{id}/status`
+- [x] Item 4: `PATCH /api/menus/{id}/status`
 - [ ] Item 5: `PUT /api/menus/sync`
 - [ ] Item 6: `view` and `roleId` filtering logic
