@@ -54,7 +54,8 @@ public class LocalAuthUserServiceImpl implements AuthUserService {
             user.getDataScope(),
             user.getDepartmentId(),
             safeLongList(user.getDepartmentIds()),
-            safeLongList(user.getScopeTenantIds())
+            safeLongList(user.getScopeTenantIds()),
+            AuthUser.AuthUserSource.LOCAL_FALLBACK
         );
     }
 

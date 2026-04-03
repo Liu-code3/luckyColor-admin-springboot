@@ -107,7 +107,7 @@ public class PersistenceAuthAccessRouteServiceImpl implements AuthAccessRouteSer
     private AccessContext resolveAccessContext(AuthUser user) {
         List<SystemRoleDO> activeRoles = resolveActiveRoles(user);
         if (activeRoles.isEmpty()) {
-            boolean shouldFallback = user != null && user.roles() != null && !user.roles().isEmpty();
+            boolean shouldFallback = user != null && user.isLocalFallbackUser();
             return new AccessContext(List.of(), List.of(), shouldFallback);
         }
         Set<Long> selectedMenuIds = new LinkedHashSet<>();

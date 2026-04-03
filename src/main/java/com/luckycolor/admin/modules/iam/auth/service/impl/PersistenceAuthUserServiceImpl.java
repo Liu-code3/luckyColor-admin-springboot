@@ -80,7 +80,8 @@ public class PersistenceAuthUserServiceImpl implements AuthUserService {
             resolveDataScope(user, activeRoles),
             user.getDepartmentId(),
             splitLongCodes(user.getDepartmentIds()),
-            splitLongCodes(user.getScopeTenantIds())
+            splitLongCodes(user.getScopeTenantIds()),
+            AuthUser.AuthUserSource.DATABASE
         );
     }
 

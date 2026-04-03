@@ -115,7 +115,12 @@ class PersistenceAuthAccessRouteServiceImplTest {
             "Local Admin",
             0,
             List.of("ROLE_LOCAL_ADMIN"),
-            List.of("local:debug")
+            List.of("local:debug"),
+            "TENANT",
+            null,
+            List.of(),
+            List.of(),
+            AuthUser.AuthUserSource.LOCAL_FALLBACK
         );
 
         List<AuthRouteResponse> routes = service.getAccessibleRoutes(user);
@@ -156,6 +161,46 @@ class PersistenceAuthAccessRouteServiceImplTest {
         assertThat(snapshot.user().buttonCodeList()).isEmpty();
         assertThat(snapshot.menuTree()).isEmpty();
         verify(systemRoleMapper, never()).selectList(any());
+        verify(menuMapper, never()).selectList(any());
+    }
+
+    @Test
+    void shouldNotFallbackToPropertyRoutesForDatabaseUserWithMissingActiveRoles() {
+        SystemRoleMapper systemRoleMapper = Mockito.mock(SystemRoleMapper.class);
+        MenuMapper menuMapper = Mockito.mock(MenuMapper.class);
+        AuthAccessRouteServiceImpl fallback = new AuthAccessRouteServiceImpl(buildFallbackProperties());
+        PersistenceAuthAccessRouteServiceImpl service = new PersistenceAuthAccessRouteServiceImpl(
+            systemRoleMapper,
+            menuMapper,
+            fallback,
+            objectMapper
+        );
+
+        when(systemRoleMapper.selectList(any())).thenReturn(List.of());
+
+        AuthUser user = new AuthUser(
+            3L,
+            "db-admin",
+            "encoded",
+            1L,
+            "DB Admin",
+            0,
+            List.of("ROLE_SUPER_ADMIN"),
+            List.of("system:user:query"),
+            "TENANT",
+            null,
+            List.of(),
+            List.of(),
+            AuthUser.AuthUserSource.DATABASE
+        );
+
+        List<AuthRouteResponse> routes = service.getAccessibleRoutes(user);
+        AuthAccessSnapshotResponse snapshot = service.getAccessSnapshot(user);
+
+        assertThat(routes).isEmpty();
+        assertThat(snapshot.roles()).isEmpty();
+        assertThat(snapshot.menuTree()).isEmpty();
+        assertThat(snapshot.user().buttonCodeList()).containsExactly("system:user:query");
         verify(menuMapper, never()).selectList(any());
     }
 
