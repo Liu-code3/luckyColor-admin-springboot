@@ -243,12 +243,46 @@ class AuthControllerTest {
         LoginCaptchaProperties loginCaptchaProperties = new LoginCaptchaProperties();
         when(authService.getAccessSnapshot(any())).thenReturn(
             new AuthAccessSnapshotResponse(
-                1L,
-                1L,
-                List.of("ROLE_SUPER_ADMIN"),
-                List.of("system:user:query"),
-                List.of("dashboard", "system:user"),
-                "/dashboard"
+                new AuthAccessSnapshotResponse.AuthAccessUserResponse(
+                    1L,
+                    1L,
+                    "admin",
+                    "System Admin",
+                    List.of("ROLE_SUPER_ADMIN"),
+                    List.of("dashboard", "system:user"),
+                    List.of("system:user:query")
+                ),
+                List.of(
+                    new AuthAccessSnapshotResponse.AuthAccessRoleResponse(
+                        1L,
+                        "ROLE_SUPER_ADMIN",
+                        "ROLE_SUPER_ADMIN",
+                        "ROLE_SUPER_ADMIN"
+                    )
+                ),
+                List.of(
+                    new AuthAccessSnapshotResponse.AuthAccessMenuTreeItemResponse(
+                        0L,
+                        1L,
+                        "Dashboard",
+                        "Dashboard",
+                        2,
+                        "/dashboard",
+                        "dashboard",
+                        "dashboard",
+                        "",
+                        "default",
+                        true,
+                        true,
+                        "dashboard/index",
+                        null,
+                        Map.of("title", "Dashboard", "menuKey", "dashboard"),
+                        1,
+                        null,
+                        null,
+                        null
+                    )
+                )
             )
         );
         AuthController controller = new AuthController(
@@ -261,8 +295,11 @@ class AuthControllerTest {
 
         AuthAccessSnapshotResponse response = controller.access(buildAuthentication()).data();
 
-        assertThat(response.routeCodes()).containsExactly("dashboard", "system:user");
-        assertThat(response.homePath()).isEqualTo("/dashboard");
+        assertThat(response.user().menuCodeList()).containsExactly("dashboard", "system:user");
+        assertThat(response.roles()).extracting(AuthAccessSnapshotResponse.AuthAccessRoleResponse::code)
+            .containsExactly("ROLE_SUPER_ADMIN");
+        assertThat(response.menuTree()).extracting(AuthAccessSnapshotResponse.AuthAccessMenuTreeItemResponse::key)
+            .containsExactly("dashboard");
     }
 
     private Authentication buildAuthentication() {

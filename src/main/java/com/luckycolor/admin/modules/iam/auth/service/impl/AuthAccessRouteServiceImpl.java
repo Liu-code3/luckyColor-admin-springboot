@@ -4,8 +4,12 @@ import com.luckycolor.admin.modules.iam.auth.config.AuthAccessProperties;
 import com.luckycolor.admin.modules.iam.auth.model.AuthUser;
 import com.luckycolor.admin.modules.iam.auth.service.AuthAccessRouteService;
 import com.luckycolor.admin.modules.iam.auth.web.response.AuthAccessSnapshotResponse;
+import com.luckycolor.admin.modules.iam.auth.web.response.AuthAccessSnapshotResponse.AuthAccessMenuTreeItemResponse;
+import com.luckycolor.admin.modules.iam.auth.web.response.AuthAccessSnapshotResponse.AuthAccessRoleResponse;
+import com.luckycolor.admin.modules.iam.auth.web.response.AuthAccessSnapshotResponse.AuthAccessUserResponse;
 import com.luckycolor.admin.modules.iam.auth.web.response.AuthRouteResponse;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -32,12 +36,17 @@ public class AuthAccessRouteServiceImpl implements AuthAccessRouteService {
     public AuthAccessSnapshotResponse getAccessSnapshot(AuthUser user) {
         List<AuthRouteResponse> routes = getAccessibleRoutes(user);
         return new AuthAccessSnapshotResponse(
-            user.userId(),
-            user.tenantId(),
-            user.roles(),
-            user.permissions(),
-            collectRouteCodes(routes),
-            resolveHomePath(routes)
+            new AuthAccessUserResponse(
+                user.userId(),
+                user.tenantId(),
+                user.username(),
+                user.nickname(),
+                safeList(user.roles()),
+                collectRouteCodes(routes),
+                safeList(user.permissions())
+            ),
+            buildRoleResponses(user),
+            buildAccessMenuTree(routes)
         );
     }
 
@@ -98,21 +107,6 @@ public class AuthAccessRouteServiceImpl implements AuthAccessRouteService {
         }
     }
 
-    private String resolveHomePath(List<AuthRouteResponse> routes) {
-        for (AuthRouteResponse route : routes) {
-            if (!route.children().isEmpty()) {
-                String childHomePath = resolveHomePath(route.children());
-                if (StringUtils.hasText(childHomePath)) {
-                    return childHomePath;
-                }
-            }
-            if (StringUtils.hasText(route.path()) && !isHidden(route)) {
-                return route.path();
-            }
-        }
-        return null;
-    }
-
     private Map<String, Object> buildRouteMeta(AuthAccessProperties.Route route) {
         Map<String, Object> meta = new LinkedHashMap<>();
         meta.put("title", route.getName());
@@ -153,12 +147,119 @@ public class AuthAccessRouteServiceImpl implements AuthAccessRouteService {
         return menuKey instanceof String value && StringUtils.hasText(value) ? value : null;
     }
 
+    private List<AuthAccessRoleResponse> buildRoleResponses(AuthUser user) {
+        List<String> roleCodes = safeList(user.roles());
+        List<AuthAccessRoleResponse> responses = new ArrayList<>(roleCodes.size());
+        for (String roleCode : roleCodes) {
+            responses.add(new AuthAccessRoleResponse(user.tenantId(), roleCode, roleCode, roleCode));
+        }
+        return responses;
+    }
+
+    private List<AuthAccessMenuTreeItemResponse> buildAccessMenuTree(List<AuthRouteResponse> routes) {
+        long[] nextId = {1L};
+        return buildAccessMenuTree(routes, 0L, nextId);
+    }
+
+    private List<AuthAccessMenuTreeItemResponse> buildAccessMenuTree(
+        List<AuthRouteResponse> routes,
+        Long parentId,
+        long[] nextId
+    ) {
+        List<AuthAccessMenuTreeItemResponse> items = new ArrayList<>(routes.size());
+        for (int index = 0; index < routes.size(); index++) {
+            AuthRouteResponse route = routes.get(index);
+            long currentId = nextId[0]++;
+            Map<String, Object> meta = route.meta() == null ? Map.of() : new LinkedHashMap<>(route.meta());
+            List<AuthAccessMenuTreeItemResponse> children = buildAccessMenuTree(route.children(), currentId, nextId);
+            items.add(
+                new AuthAccessMenuTreeItemResponse(
+                    parentId,
+                    currentId,
+                    resolveTitle(route),
+                    route.name(),
+                    resolveType(route),
+                    route.path(),
+                    resolveRouteCode(route),
+                    resolvePermissionCode(route),
+                    resolveIcon(route),
+                    resolveLayout(route),
+                    !isHidden(route),
+                    true,
+                    route.component(),
+                    route.redirect(),
+                    meta.isEmpty() ? null : meta,
+                    index + 1,
+                    null,
+                    null,
+                    children.isEmpty() ? null : children
+                )
+            );
+        }
+        return items;
+    }
+
+    private Integer resolveType(AuthRouteResponse route) {
+        if (route == null || route.meta() == null) {
+            return route != null && !route.children().isEmpty() ? 1 : 2;
+        }
+        Object type = route.meta().get("type");
+        if (type instanceof Number number) {
+            return number.intValue();
+        }
+        return !route.children().isEmpty() ? 1 : 2;
+    }
+
+    private String resolveTitle(AuthRouteResponse route) {
+        if (route != null && route.meta() != null) {
+            Object title = route.meta().get("title");
+            if (title instanceof String value && StringUtils.hasText(value)) {
+                return value;
+            }
+        }
+        return route == null ? null : route.name();
+    }
+
+    private String resolvePermissionCode(AuthRouteResponse route) {
+        if (route != null && route.meta() != null) {
+            Object permissionCode = route.meta().get("permissionCode");
+            if (permissionCode instanceof String value && StringUtils.hasText(value)) {
+                return value;
+            }
+        }
+        return resolveRouteCode(route);
+    }
+
+    private String resolveIcon(AuthRouteResponse route) {
+        if (route != null && route.meta() != null) {
+            Object icon = route.meta().get("icon");
+            if (icon instanceof String value) {
+                return value;
+            }
+        }
+        return "";
+    }
+
+    private String resolveLayout(AuthRouteResponse route) {
+        if (route != null && route.meta() != null) {
+            Object layout = route.meta().get("layout");
+            if (layout instanceof String value) {
+                return value;
+            }
+        }
+        return "";
+    }
+
     private boolean isHidden(AuthRouteResponse route) {
         if (route == null || route.meta() == null) {
             return false;
         }
         Object hidden = route.meta().get("hidden");
         return hidden instanceof Boolean value && value;
+    }
+
+    private List<String> safeList(List<String> values) {
+        return values == null ? Collections.emptyList() : values;
     }
 
     private String joinPath(String parentPath, String currentPath) {

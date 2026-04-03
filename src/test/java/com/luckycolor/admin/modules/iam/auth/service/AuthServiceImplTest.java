@@ -312,10 +312,18 @@ class AuthServiceImplTest {
             new JwtAuthenticatedUser(1L, "admin", 1L, List.of("ROLE_SUPER_ADMIN"))
         );
 
-        assertThat(response.roles()).containsExactly("ROLE_SUPER_ADMIN");
-        assertThat(response.permissions()).containsExactly("system:user:query", "system:user:create");
-        assertThat(response.routeCodes()).containsExactly("dashboard", "system", "system:user", "system:role");
-        assertThat(response.homePath()).isEqualTo("/dashboard");
+        assertThat(response.user().id()).isEqualTo(1L);
+        assertThat(response.user().roleCodes()).containsExactly("ROLE_SUPER_ADMIN");
+        assertThat(response.user().menuCodeList()).containsExactly("dashboard", "system", "system:user", "system:role");
+        assertThat(response.user().buttonCodeList()).containsExactly("system:user:query", "system:user:create");
+        assertThat(response.roles()).extracting(AuthAccessSnapshotResponse.AuthAccessRoleResponse::code)
+            .containsExactly("ROLE_SUPER_ADMIN");
+        assertThat(response.menuTree()).hasSize(2);
+        assertThat(response.menuTree().get(0).title()).isEqualTo("Dashboard");
+        assertThat(response.menuTree().get(0).permissionCode()).isEqualTo("dashboard");
+        assertThat(response.menuTree().get(1).children()).extracting(
+            AuthAccessSnapshotResponse.AuthAccessMenuTreeItemResponse::permissionCode
+        ).containsExactly("system:user:query", "system:role");
     }
 
     private LocalAuthProperties buildAuthProperties(String password, int status) {
