@@ -6,8 +6,10 @@ import com.luckycolor.admin.modules.iam.auth.service.AuthAccessRouteService;
 import com.luckycolor.admin.modules.iam.auth.web.response.AuthAccessSnapshotResponse;
 import com.luckycolor.admin.modules.iam.auth.web.response.AuthRouteResponse;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -54,17 +56,11 @@ public class AuthAccessRouteServiceImpl implements AuthAccessRouteService {
             }
             accessibleRoutes.add(
                 new AuthRouteResponse(
-                    route.getCode(),
-                    route.getName(),
-                    route.getPath(),
                     fullPath,
+                    route.getName(),
                     route.getComponent(),
                     route.getRedirect(),
-                    route.getIcon(),
-                    route.isHidden(),
-                    route.isAlwaysShow(),
-                    route.isKeepAlive(),
-                    safeList(route.getPermissions()),
+                    buildRouteMeta(route),
                     childRoutes
                 )
             );
@@ -94,8 +90,9 @@ public class AuthAccessRouteServiceImpl implements AuthAccessRouteService {
 
     private void collectRouteCodesRecursively(List<AuthRouteResponse> routes, Set<String> routeCodes) {
         for (AuthRouteResponse route : routes) {
-            if (StringUtils.hasText(route.code())) {
-                routeCodes.add(route.code());
+            String routeCode = resolveRouteCode(route);
+            if (StringUtils.hasText(routeCode)) {
+                routeCodes.add(routeCode);
             }
             collectRouteCodesRecursively(route.children(), routeCodes);
         }
@@ -109,11 +106,59 @@ public class AuthAccessRouteServiceImpl implements AuthAccessRouteService {
                     return childHomePath;
                 }
             }
-            if (StringUtils.hasText(route.fullPath()) && !route.hidden()) {
-                return route.fullPath();
+            if (StringUtils.hasText(route.path()) && !isHidden(route)) {
+                return route.path();
             }
         }
         return null;
+    }
+
+    private Map<String, Object> buildRouteMeta(AuthAccessProperties.Route route) {
+        Map<String, Object> meta = new LinkedHashMap<>();
+        meta.put("title", route.getName());
+        putIfHasText(meta, "icon", route.getIcon());
+        meta.put("hidden", route.isHidden());
+        meta.put("menuKey", route.getCode());
+        meta.put("permissionCode", resolvePermissionCode(route));
+        meta.put("type", route.getChildren().isEmpty() ? 2 : 1);
+        meta.put("layout", "default");
+        meta.put("keepAlive", route.isKeepAlive());
+        if (route.isAlwaysShow()) {
+            meta.put("alwaysShow", true);
+        }
+        return meta;
+    }
+
+    private void putIfHasText(Map<String, Object> values, String key, String value) {
+        if (StringUtils.hasText(value)) {
+            values.put(key, value);
+        }
+    }
+
+    private String resolvePermissionCode(AuthAccessProperties.Route route) {
+        if (route == null) {
+            return null;
+        }
+        if (route.getPermissions() != null && !route.getPermissions().isEmpty()) {
+            return route.getPermissions().get(0);
+        }
+        return route.getCode();
+    }
+
+    private String resolveRouteCode(AuthRouteResponse route) {
+        if (route == null || route.meta() == null) {
+            return null;
+        }
+        Object menuKey = route.meta().get("menuKey");
+        return menuKey instanceof String value && StringUtils.hasText(value) ? value : null;
+    }
+
+    private boolean isHidden(AuthRouteResponse route) {
+        if (route == null || route.meta() == null) {
+            return false;
+        }
+        Object hidden = route.meta().get("hidden");
+        return hidden instanceof Boolean value && value;
     }
 
     private String joinPath(String parentPath, String currentPath) {
@@ -138,9 +183,5 @@ public class AuthAccessRouteServiceImpl implements AuthAccessRouteService {
             normalizedPath = "/" + normalizedPath;
         }
         return normalizedPath.replaceAll("/+", "/");
-    }
-
-    private List<String> safeList(List<String> values) {
-        return values == null ? List.of() : List.copyOf(values);
     }
 }

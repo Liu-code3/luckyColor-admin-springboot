@@ -26,6 +26,7 @@ import com.luckycolor.admin.modules.iam.auth.web.response.AuthProfileResponse;
 import com.luckycolor.admin.modules.iam.auth.web.response.AuthRouteResponse;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -51,7 +52,8 @@ class AuthServiceImplTest {
             buildCaptchaProperties(true),
             loginAuditService,
             null,
-            loginCaptchaService
+            loginCaptchaService,
+            null
         );
 
         AuthLoginResponse response = authService.login(buildLoginRequest("admin123"));
@@ -76,6 +78,7 @@ class AuthServiceImplTest {
             buildJwtProperties(),
             buildCaptchaProperties(false),
             loginAuditService,
+            null,
             null,
             null
         );
@@ -105,6 +108,7 @@ class AuthServiceImplTest {
             buildCaptchaProperties(false),
             loginAuditService,
             null,
+            null,
             null
         );
         AuthLoginRequest request = buildLoginRequest("wrong");
@@ -130,6 +134,7 @@ class AuthServiceImplTest {
             buildCaptchaProperties(false),
             loginAuditService,
             null,
+            null,
             null
         );
 
@@ -151,6 +156,7 @@ class AuthServiceImplTest {
             buildJwtProperties(),
             buildCaptchaProperties(true),
             Mockito.mock(LoginAuditService.class),
+            null,
             null,
             null
         );
@@ -176,6 +182,7 @@ class AuthServiceImplTest {
             buildCaptchaProperties(false),
             Mockito.mock(LoginAuditService.class),
             securityAuditLogService,
+            null,
             null
         );
 
@@ -196,6 +203,7 @@ class AuthServiceImplTest {
             buildJwtProperties(),
             buildCaptchaProperties(false),
             Mockito.mock(LoginAuditService.class),
+            null,
             null,
             null
         );
@@ -221,6 +229,7 @@ class AuthServiceImplTest {
             buildCaptchaProperties(false),
             Mockito.mock(LoginAuditService.class),
             null,
+            null,
             null
         );
 
@@ -244,6 +253,7 @@ class AuthServiceImplTest {
             buildCaptchaProperties(false),
             Mockito.mock(LoginAuditService.class),
             null,
+            null,
             null
         );
 
@@ -252,13 +262,34 @@ class AuthServiceImplTest {
         );
 
         assertThat(response).hasSize(2);
-        assertThat(response.get(0).code()).isEqualTo("dashboard");
-        assertThat(response.get(0).fullPath()).isEqualTo("/dashboard");
-        assertThat(response.get(1).code()).isEqualTo("system");
-        assertThat(response.get(1).children()).extracting(AuthRouteResponse::code)
-            .containsExactly("system:user", "system:role");
-        assertThat(response.get(1).children()).extracting(AuthRouteResponse::fullPath)
+        assertThat(response.get(0).path()).isEqualTo("/dashboard");
+        assertThat(response.get(0).name()).isEqualTo("Dashboard");
+        assertThat(response.get(0).meta()).containsEntry("menuKey", "dashboard");
+        assertThat(response.get(0).meta()).containsEntry("permissionCode", "dashboard");
+        assertThat(response.get(1).path()).isEqualTo("/system");
+        assertThat(response.get(1).children()).extracting(AuthRouteResponse::path)
             .containsExactly("/system/users", "/system/roles");
+        assertThat(response.get(1).children()).extracting(AuthRouteResponse::meta)
+            .containsExactly(
+                Map.of(
+                    "title", "SystemUser",
+                    "hidden", false,
+                    "menuKey", "system:user",
+                    "permissionCode", "system:user:query",
+                    "type", 2,
+                    "layout", "default",
+                    "keepAlive", false
+                ),
+                Map.of(
+                    "title", "SystemRole",
+                    "hidden", false,
+                    "menuKey", "system:role",
+                    "permissionCode", "system:role",
+                    "type", 2,
+                    "layout", "default",
+                    "keepAlive", false
+                )
+            );
     }
 
     @Test
@@ -272,6 +303,7 @@ class AuthServiceImplTest {
             buildJwtProperties(),
             buildCaptchaProperties(false),
             Mockito.mock(LoginAuditService.class),
+            null,
             null,
             null
         );

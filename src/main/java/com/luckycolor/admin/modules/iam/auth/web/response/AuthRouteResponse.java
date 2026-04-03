@@ -1,19 +1,14 @@
 package com.luckycolor.admin.modules.iam.auth.web.response;
 
+import java.util.Map;
 import java.util.List;
 
 public record AuthRouteResponse(
-    String code,
-    String name,
     String path,
-    String fullPath,
+    String name,
     String component,
     String redirect,
-    String icon,
-    boolean hidden,
-    boolean alwaysShow,
-    boolean keepAlive,
-    List<String> permissions,
+    Map<String, Object> meta,
     List<AuthRouteResponse> children
 ) {
 }
