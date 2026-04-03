@@ -324,3 +324,4 @@ Spring Boot：
 - [x] Item 7: tighten `POST /api/menus` and `PATCH /api/menus/{id}` permission code semantics
 - [x] Item 8: persist `menu_key`, `layout`, `redirect`, and `meta` on `sys_menu`
 - [x] Item 9: backfill built-in `sys_menu` contract data for existing seed rows
+- [x] Item 10: prefer database-backed auth users and merge active role permissions with local fallback
