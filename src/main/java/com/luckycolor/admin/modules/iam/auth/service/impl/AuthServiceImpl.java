@@ -326,7 +326,7 @@ public class AuthServiceImpl implements AuthService {
         if (!StringUtils.hasText(rawPassword) || !StringUtils.hasText(storedPassword)) {
             return false;
         }
-        if (storedPassword.startsWith("$2a$") || storedPassword.startsWith("$2b$") || storedPassword.startsWith("$2y$")) {
+        if (storedPassword.startsWith("$2")) {
             return passwordEncoder.matches(rawPassword, storedPassword);
         }
         return Objects.equals(rawPassword, storedPassword);

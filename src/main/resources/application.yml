@@ -73,7 +73,7 @@ app:
       local-users:
         - user-id: 1
           username: admin
-          password: ${ADMIN_PASSWORD:123456}
+          password: ${ADMIN_PASSWORD:$2b$10$GpBeIWgfwZt8WkEG8.nCc.CB9GPGYPLgrIx5OpcCS5F5lUZrG89vC}
           tenant-id: 1
           nickname: System Admin
           status: 0
@@ -137,7 +137,7 @@ app:
             - tenant:package:delete
         - user-id: 2
           username: tenant-operator
-          password: ${TENANT_OPERATOR_PASSWORD:operator123}
+          password: ${TENANT_OPERATOR_PASSWORD:$2b$10$ByL3bDD6.G4YumMjJ6AkgeosOYzlf/grj3nN0OMgjOLio30J0ksTG}
           tenant-id: 1
           nickname: Tenant Operator
           status: 0

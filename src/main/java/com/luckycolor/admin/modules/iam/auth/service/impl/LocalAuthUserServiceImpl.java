@@ -29,8 +29,7 @@ public class LocalAuthUserServiceImpl implements AuthUserService {
         return localAuthProperties.getLocalUsers().stream()
             .filter(item -> StringUtils.hasText(item.getUsername()))
             .filter(item -> item.getUsername().equalsIgnoreCase(username))
-            .filter(item -> !StringUtils.hasText(tenantExternalId)
-                || String.valueOf(item.getTenantId()).equals(tenantExternalId.trim()))
+            .filter(item -> matchesTenant(item.getTenantId(), tenantExternalId))
             .findFirst()
             .map(this::toAuthUser)
             .orElse(null);
@@ -72,5 +71,17 @@ public class LocalAuthUserServiceImpl implements AuthUserService {
 
     private List<Long> safeLongList(List<Long> values) {
         return values == null ? List.of() : values;
+    }
+
+    private boolean matchesTenant(Long tenantId, String tenantExternalId) {
+        if (!StringUtils.hasText(tenantExternalId)) {
+            return true;
+        }
+        if (tenantId == null) {
+            return false;
+        }
+        String normalized = tenantExternalId.trim();
+        return String.valueOf(tenantId).equals(normalized)
+            || ("tenant_%03d".formatted(tenantId)).equalsIgnoreCase(normalized);
     }
 }

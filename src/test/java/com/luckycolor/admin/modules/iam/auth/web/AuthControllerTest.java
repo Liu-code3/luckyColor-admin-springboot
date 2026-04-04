@@ -126,7 +126,7 @@ class AuthControllerTest {
         mockMvc.perform(post("/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                    {"username":"admin","password":"admin123","captchaKey":"captcha-1","captchaCode":"ABCD"}
+                    {"username":"admin","password":"123456","captchaKey":"captcha-1","captchaCode":"ABCD"}
                     """))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.accessToken").value("jwt-token"))

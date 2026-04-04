@@ -40,7 +40,7 @@ import org.springframework.test.web.servlet.MvcResult;
         "app.login-captcha.enabled=false",
         "app.security.auth.local-users[0].user-id=1",
         "app.security.auth.local-users[0].username=admin",
-        "app.security.auth.local-users[0].password=admin123",
+        "app.security.auth.local-users[0].password=$2b$10$GpBeIWgfwZt8WkEG8.nCc.CB9GPGYPLgrIx5OpcCS5F5lUZrG89vC",
         "app.security.auth.local-users[0].tenant-id=1",
         "app.security.auth.local-users[0].nickname=System Admin",
         "app.security.auth.local-users[0].status=0",
@@ -83,7 +83,7 @@ class CoreRegressionIntegrationTest {
 
     @Test
     void shouldLoginAndUseTokenToReadProfile() throws Exception {
-        String token = loginAndGetToken("admin", "admin123");
+        String token = loginAndGetToken("admin", "123456");
 
         mockMvc.perform(get("/auth/profile").header("Authorization", "Bearer " + token))
             .andExpect(status().isOk())
@@ -95,7 +95,7 @@ class CoreRegressionIntegrationTest {
     @Test
     void shouldRejectLoginWhenPasswordIsIncorrect() throws Exception {
         mockMvc.perform(post("/auth/login")
-                .header("x-tenant-id", "1")
+                .header("x-tenant-id", "tenant_001")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {"username":"admin","password":"wrong-password"}
@@ -110,7 +110,7 @@ class CoreRegressionIntegrationTest {
         when(dictionaryCatalogCacheService.listItemsByType("user_status")).thenReturn(List.of(
             new DictionaryCatalogItemResponse(1L, 0L, "Enabled", "0", "success", List.of())
         ));
-        String token = loginAndGetToken("admin", "admin123");
+        String token = loginAndGetToken("admin", "123456");
 
         mockMvc.perform(get("/admin/dictionaries/user_status/items")
                 .header("Authorization", "Bearer " + token))
@@ -122,7 +122,7 @@ class CoreRegressionIntegrationTest {
     @Test
     void shouldRequireAuthenticationForDictionaryApi() throws Exception {
         mockMvc.perform(get("/admin/dictionaries/user_status/items")
-                .header("x-tenant-id", "1"))
+                .header("x-tenant-id", "tenant_001"))
             .andExpect(status().isUnauthorized())
             .andExpect(jsonPath("$.code").value(40100))
             .andExpect(jsonPath("$.message").value("Unauthorized"));
@@ -133,7 +133,7 @@ class CoreRegressionIntegrationTest {
         when(systemConfigService.pageConfigs(any())).thenReturn(PageResult.of(List.of(
             new SystemConfigPageResponse(1L, 1L, "sms.secret", "SMS Secret", "******", 1, 0, 1, "default")
         ), 1L));
-        String token = loginAndGetToken("admin", "admin123");
+        String token = loginAndGetToken("admin", "123456");
 
         mockMvc.perform(get("/admin/system-configs/page")
                 .header("Authorization", "Bearer " + token)
@@ -146,7 +146,7 @@ class CoreRegressionIntegrationTest {
     @Test
     void shouldRejectSystemConfigPageWithoutToken() throws Exception {
         mockMvc.perform(get("/admin/system-configs/page")
-                .header("x-tenant-id", "1"))
+                .header("x-tenant-id", "tenant_001"))
             .andExpect(status().isUnauthorized())
             .andExpect(jsonPath("$.code").value(40100))
             .andExpect(jsonPath("$.message").value("Unauthorized"));
@@ -154,7 +154,7 @@ class CoreRegressionIntegrationTest {
 
     private String loginAndGetToken(String username, String password) throws Exception {
         MvcResult mvcResult = mockMvc.perform(post("/auth/login")
-                .header("x-tenant-id", "1")
+                .header("x-tenant-id", "tenant_001")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {"username":"%s","password":"%s"}
