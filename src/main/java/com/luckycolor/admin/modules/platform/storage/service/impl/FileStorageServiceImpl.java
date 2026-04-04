@@ -78,6 +78,19 @@ public class FileStorageServiceImpl implements FileStorageService {
         }
     }
 
+    @Override
+    public boolean delete(String relativePath) {
+        try {
+            Path filePath = resolveStoragePath(relativePath);
+            if (!Files.exists(filePath) || !Files.isRegularFile(filePath)) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "File not found");
+            }
+            return Files.deleteIfExists(filePath);
+        } catch (IOException exception) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to delete file", exception);
+        }
+    }
+
     private Path resolveStoragePath(String relativePath) {
         if (!StringUtils.hasText(relativePath)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "File path is required");

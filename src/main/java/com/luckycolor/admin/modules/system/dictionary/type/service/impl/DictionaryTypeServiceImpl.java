@@ -14,14 +14,14 @@ import com.luckycolor.admin.modules.system.dictionary.type.web.request.Dictionar
 import com.luckycolor.admin.modules.system.dictionary.type.web.response.DictionaryTypeDetailResponse;
 import com.luckycolor.admin.modules.system.dictionary.type.web.response.DictionaryTypePageResponse;
 import java.util.List;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import com.luckycolor.admin.common.config.ConditionalOnPersistenceEnabled;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
-@ConditionalOnBean(DictionaryTypeMapper.class)
+@ConditionalOnPersistenceEnabled
 public class DictionaryTypeServiceImpl implements DictionaryTypeService {
 
     private final DictionaryTypeMapper dictionaryTypeMapper;

@@ -38,7 +38,7 @@ public class AuthAccessRouteServiceImpl implements AuthAccessRouteService {
         return new AuthAccessSnapshotResponse(
             new AuthAccessUserResponse(
                 user.userId(),
-                user.tenantId(),
+                user.tenantId() == null ? null : String.valueOf(user.tenantId()),
                 user.username(),
                 user.nickname(),
                 safeList(user.roles()),
@@ -151,7 +151,7 @@ public class AuthAccessRouteServiceImpl implements AuthAccessRouteService {
         List<String> roleCodes = safeList(user.roles());
         List<AuthAccessRoleResponse> responses = new ArrayList<>(roleCodes.size());
         for (String roleCode : roleCodes) {
-            responses.add(new AuthAccessRoleResponse(user.tenantId(), roleCode, roleCode, roleCode));
+            responses.add(new AuthAccessRoleResponse(user.tenantId() == null ? null : String.valueOf(user.tenantId()), roleCode, roleCode, roleCode));
         }
         return responses;
     }

@@ -6,11 +6,11 @@ import com.luckycolor.admin.modules.platform.preference.mapper.UserPreferenceMap
 import com.luckycolor.admin.modules.platform.preference.service.UserPreferenceService;
 import com.luckycolor.admin.modules.platform.preference.web.request.UserPreferenceSaveRequest;
 import com.luckycolor.admin.modules.platform.preference.web.response.UserPreferenceResponse;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import com.luckycolor.admin.common.config.ConditionalOnPersistenceEnabled;
 import org.springframework.stereotype.Service;
 
 @Service
-@ConditionalOnBean(UserPreferenceMapper.class)
+@ConditionalOnPersistenceEnabled
 public class UserPreferenceServiceImpl implements UserPreferenceService {
 
     private static final String DEFAULT_THEME_SCHEME = "light";

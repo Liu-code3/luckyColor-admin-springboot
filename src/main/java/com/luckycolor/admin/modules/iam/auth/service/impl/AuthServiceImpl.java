@@ -2,7 +2,9 @@ package com.luckycolor.admin.modules.iam.auth.service.impl;
 
 import com.luckycolor.admin.infrastructure.security.config.SecurityJwtProperties;
 import com.luckycolor.admin.infrastructure.security.jwt.JwtAuthenticatedUser;
+import com.luckycolor.admin.infrastructure.security.jwt.JwtRefreshTokenClaims;
 import com.luckycolor.admin.infrastructure.security.jwt.JwtTokenService;
+import com.luckycolor.admin.infrastructure.tenant.service.TenantExternalIdService;
 import com.luckycolor.admin.modules.iam.audit.service.SecurityAuditLogService;
 import com.luckycolor.admin.modules.iam.auth.config.LoginCaptchaProperties;
 import com.luckycolor.admin.modules.iam.auth.model.AuthUser;
@@ -15,13 +17,19 @@ import com.luckycolor.admin.modules.iam.auth.service.AuthUserService;
 import com.luckycolor.admin.modules.iam.auth.service.LoginAuditService;
 import com.luckycolor.admin.modules.iam.auth.web.request.AuthLoginRequest;
 import com.luckycolor.admin.modules.iam.auth.web.response.AuthAccessSnapshotResponse;
+import com.luckycolor.admin.modules.iam.auth.web.response.AuthButtonPermissionsResponse;
 import com.luckycolor.admin.modules.iam.auth.web.response.AuthLoginResponse;
 import com.luckycolor.admin.modules.iam.auth.web.response.AuthLoginUserResponse;
 import com.luckycolor.admin.modules.iam.auth.web.response.AuthPermissionSnapshotResponse;
 import com.luckycolor.admin.modules.iam.auth.web.response.AuthProfileResponse;
+import com.luckycolor.admin.modules.iam.auth.web.response.AuthRefreshResponse;
 import com.luckycolor.admin.modules.iam.auth.web.response.AuthRouteResponse;
+import io.jsonwebtoken.ExpiredJwtException;
 import java.time.Instant;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,6 +56,7 @@ public class AuthServiceImpl implements AuthService {
     private final LoginCaptchaService loginCaptchaService;
     private final LegacyLoginCaptchaService legacyLoginCaptchaService;
     private final SecurityAuditLogService securityAuditLogService;
+    private final TenantExternalIdService tenantExternalIdService;
 
     public AuthServiceImpl(
         AuthUserService authUserService,
@@ -60,7 +69,8 @@ public class AuthServiceImpl implements AuthService {
         LoginAuditService loginAuditService,
         @Nullable SecurityAuditLogService securityAuditLogService,
         @Nullable LoginCaptchaService loginCaptchaService,
-        @Nullable LegacyLoginCaptchaService legacyLoginCaptchaService
+        @Nullable LegacyLoginCaptchaService legacyLoginCaptchaService,
+        TenantExternalIdService tenantExternalIdService
     ) {
         this.authUserService = authUserService;
         this.passwordEncoder = passwordEncoder;
@@ -73,15 +83,16 @@ public class AuthServiceImpl implements AuthService {
         this.securityAuditLogService = securityAuditLogService;
         this.loginCaptchaService = loginCaptchaService;
         this.legacyLoginCaptchaService = legacyLoginCaptchaService;
+        this.tenantExternalIdService = tenantExternalIdService;
     }
 
     @Override
     public AuthLoginResponse login(AuthLoginRequest request) {
         validateCaptchaIfNecessary(request);
-        AuthUser user = authUserService.findByUsername(request.getUsername());
+        AuthUser user = authUserService.findByUsername(request.getUsername(), request.getTenantId());
         if (user == null) {
             loginAuditService.recordFailure(null, request.getUsername(), null, request.getRemoteIp(), "USER_NOT_FOUND");
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Username or password is incorrect");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "AUTH_LOGIN_FAILED");
         }
         if (!Objects.equals(user.status(), 0)) {
             loginAuditService.recordFailure(
@@ -91,7 +102,7 @@ public class AuthServiceImpl implements AuthService {
                 request.getRemoteIp(),
                 "USER_DISABLED"
             );
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "User is disabled");
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "AUTH_ACCOUNT_DISABLED");
         }
         if (!matchesPassword(request.getPassword(), user.password())) {
             loginAuditService.recordFailure(
@@ -101,7 +112,7 @@ public class AuthServiceImpl implements AuthService {
                 request.getRemoteIp(),
                 "PASSWORD_MISMATCH"
             );
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Username or password is incorrect");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "AUTH_LOGIN_FAILED");
         }
 
         String accessToken = jwtTokenService.createAccessToken(
@@ -110,32 +121,37 @@ public class AuthServiceImpl implements AuthService {
             user.tenantId(),
             user.roles()
         );
+        String refreshToken = jwtTokenService.createRefreshToken(user.userId(), user.username(), user.tenantId());
         AuthAccessSnapshotResponse accessSnapshot = authAccessRouteService.getAccessSnapshot(user);
         List<String> roleCodes = resolveRoleCodes(user, accessSnapshot);
+        List<String> menuCodes = resolveMenuCodes(accessSnapshot);
         List<String> buttonCodes = resolveButtonCodes(user, accessSnapshot);
         loginAuditService.recordSuccess(user.userId(), user.username(), user.tenantId(), request.getRemoteIp());
         return new AuthLoginResponse(
             accessToken,
             "Bearer",
             securityJwtProperties.resolveExpiresIn().toSeconds(),
+            refreshToken,
             user.userId(),
             user.username(),
             user.nickname(),
-            user.tenantId(),
+            tenantExternalIdService.toExternalTenantId(user.tenantId()),
             roleCodes,
             buttonCodes,
             buttonCodes,
             buttonCodes,
             buttonCodes,
+            menuCodes,
             user.dataScope(),
             resolveDataScopeDeptIds(user),
             new AuthLoginUserResponse(
                 user.userId(),
-                user.tenantId(),
+                tenantExternalIdService.toExternalTenantId(user.tenantId()),
                 null,
                 user.username(),
                 user.nickname(),
                 roleCodes,
+                menuCodes,
                 buttonCodes,
                 buttonCodes,
                 buttonCodes,
@@ -147,15 +163,50 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public void logout(JwtAuthenticatedUser authenticatedUser, String token, String remoteIp) {
+    public AuthRefreshResponse refresh(String refreshToken) {
+        if (!StringUtils.hasText(refreshToken)) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "AUTH_REFRESH_TOKEN_INVALID");
+        }
+        if (authTokenSessionService.isRevoked(refreshToken)) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "AUTH_REFRESH_TOKEN_INVALID");
+        }
+        JwtRefreshTokenClaims claims;
+        try {
+            claims = jwtTokenService.parseRefreshToken(refreshToken);
+        } catch (ExpiredJwtException exception) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "AUTH_REFRESH_TOKEN_EXPIRED", exception);
+        } catch (RuntimeException exception) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "AUTH_REFRESH_TOKEN_INVALID", exception);
+        }
+        AuthUser user = authUserService.getByUserId(claims.userId());
+        if (user == null || !Objects.equals(user.status(), 0)) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "AUTH_REFRESH_TOKEN_INVALID");
+        }
+        authTokenSessionService.revoke(refreshToken, jwtTokenService.resolveRefreshExpiration(refreshToken));
+        return new AuthRefreshResponse(
+            jwtTokenService.createAccessToken(user.userId(), user.username(), user.tenantId(), user.roles()),
+            "Bearer",
+            securityJwtProperties.resolveExpiresIn().toSeconds(),
+            jwtTokenService.createRefreshToken(user.userId(), user.username(), user.tenantId())
+        );
+    }
+
+    @Override
+    public void logout(JwtAuthenticatedUser authenticatedUser, String accessToken, String refreshToken, String remoteIp) {
         if (authenticatedUser == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized");
         }
-        if (!StringUtils.hasText(token)) {
+        if (!StringUtils.hasText(accessToken) && !StringUtils.hasText(refreshToken)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Bearer token is required");
         }
-        Instant expiresAt = jwtTokenService.resolveExpiration(token);
-        authTokenSessionService.revoke(token, expiresAt);
+        if (StringUtils.hasText(accessToken)) {
+            Instant expiresAt = jwtTokenService.resolveExpiration(accessToken);
+            authTokenSessionService.revoke(accessToken, expiresAt);
+        }
+        if (StringUtils.hasText(refreshToken)) {
+            Instant expiresAt = jwtTokenService.resolveRefreshExpiration(refreshToken);
+            authTokenSessionService.revoke(refreshToken, expiresAt);
+        }
         if (securityAuditLogService != null) {
             try {
                 securityAuditLogService.recordLogout(
@@ -180,16 +231,18 @@ public class AuthServiceImpl implements AuthService {
         AuthUser user = getRequiredUser(authenticatedUser);
         AuthAccessSnapshotResponse accessSnapshot = authAccessRouteService.getAccessSnapshot(user);
         List<String> roleCodes = resolveRoleCodes(user, accessSnapshot);
+        List<String> menuCodes = resolveMenuCodes(accessSnapshot);
         List<String> buttonCodes = resolveButtonCodes(user, accessSnapshot);
         return new AuthProfileResponse(
             user.userId(),
             user.userId(),
             user.username(),
             user.nickname(),
-            user.tenantId(),
+            tenantExternalIdService.toExternalTenantId(user.tenantId()),
             null,
             roleCodes,
             roleCodes,
+            menuCodes,
             buttonCodes,
             buttonCodes,
             buttonCodes,
@@ -205,10 +258,31 @@ public class AuthServiceImpl implements AuthService {
         AuthAccessSnapshotResponse accessSnapshot = authAccessRouteService.getAccessSnapshot(user);
         return new AuthPermissionSnapshotResponse(
             user.userId(),
-            user.tenantId(),
+            tenantExternalIdService.toExternalTenantId(user.tenantId()),
             resolveRoleCodes(user, accessSnapshot),
             resolveButtonCodes(user, accessSnapshot)
         );
+    }
+
+    @Override
+    public AuthButtonPermissionsResponse getButtonPermissions(
+        JwtAuthenticatedUser authenticatedUser,
+        List<String> requestedCodes
+    ) {
+        AuthUser user = getRequiredUser(authenticatedUser);
+        AuthAccessSnapshotResponse accessSnapshot = authAccessRouteService.getAccessSnapshot(user);
+        List<String> buttonCodes = resolveButtonCodes(user, accessSnapshot);
+        List<String> targetCodes = requestedCodes == null || requestedCodes.isEmpty() ? buttonCodes : requestedCodes;
+        Map<String, Boolean> permissionMap = new LinkedHashMap<>();
+        LinkedHashSet<String> grantedCodes = new LinkedHashSet<>();
+        for (String code : targetCodes) {
+            boolean granted = buttonCodes.contains(code);
+            permissionMap.put(code, granted);
+            if (granted) {
+                grantedCodes.add(code);
+            }
+        }
+        return new AuthButtonPermissionsResponse(buttonCodes, List.copyOf(grantedCodes), permissionMap);
     }
 
     @Override
@@ -270,6 +344,13 @@ public class AuthServiceImpl implements AuthService {
             return accessSnapshot.user().buttonCodeList();
         }
         return user.permissions();
+    }
+
+    private List<String> resolveMenuCodes(AuthAccessSnapshotResponse accessSnapshot) {
+        if (accessSnapshot != null && accessSnapshot.user() != null && accessSnapshot.user().menuCodeList() != null) {
+            return accessSnapshot.user().menuCodeList();
+        }
+        return List.of();
     }
 
     private AuthUser getRequiredUser(JwtAuthenticatedUser authenticatedUser) {

@@ -54,7 +54,7 @@ class SystemDepartmentControllerTest {
 
         mockMvc.perform(get("/admin/departments/tree").param("departmentName", "Head"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.code").value(0))
+            .andExpect(jsonPath("$.code").value(200))
             .andExpect(jsonPath("$.data[0].departmentName").value("Headquarters"))
             .andExpect(jsonPath("$.data[0].children[0].departmentName").value("Engineering"));
     }

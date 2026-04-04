@@ -41,7 +41,7 @@ class TenantBootstrapControllerTest {
 
         mockMvc.perform(get("/admin/tenant-bootstrap/templates"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.code").value(0))
+            .andExpect(jsonPath("$.code").value(200))
             .andExpect(jsonPath("$.data[0].code").value("default"));
     }
 

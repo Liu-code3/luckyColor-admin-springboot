@@ -14,14 +14,14 @@ import com.luckycolor.admin.modules.system.user.dataobject.SystemUserDO;
 import com.luckycolor.admin.modules.system.user.mapper.SystemUserMapper;
 import java.util.Comparator;
 import java.util.List;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import com.luckycolor.admin.common.config.ConditionalOnPersistenceEnabled;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
-@ConditionalOnBean(SystemDepartmentMapper.class)
+@ConditionalOnPersistenceEnabled
 public class SystemDepartmentServiceImpl implements SystemDepartmentService {
 
     private final SystemDepartmentMapper systemDepartmentMapper;

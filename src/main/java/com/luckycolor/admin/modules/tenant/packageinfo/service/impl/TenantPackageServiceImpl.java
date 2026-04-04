@@ -12,7 +12,7 @@ import com.luckycolor.admin.modules.tenant.packageinfo.web.request.TenantPackage
 import com.luckycolor.admin.modules.tenant.packageinfo.web.request.TenantPackageStatusRequest;
 import com.luckycolor.admin.modules.tenant.packageinfo.web.response.TenantPackageDetailResponse;
 import com.luckycolor.admin.modules.tenant.packageinfo.web.response.TenantPackagePageResponse;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import com.luckycolor.admin.common.config.ConditionalOnPersistenceEnabled;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.server.ResponseStatusException;
@@ -20,7 +20,7 @@ import org.springframework.http.HttpStatus;
 
 @Service
 @TenantIgnore
-@ConditionalOnBean(TenantPackageMapper.class)
+@ConditionalOnPersistenceEnabled
 public class TenantPackageServiceImpl implements TenantPackageService {
 
     private final TenantPackageMapper tenantPackageMapper;

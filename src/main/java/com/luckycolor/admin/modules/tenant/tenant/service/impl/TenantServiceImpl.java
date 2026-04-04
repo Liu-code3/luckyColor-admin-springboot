@@ -14,7 +14,7 @@ import com.luckycolor.admin.modules.tenant.tenant.web.request.TenantSaveRequest;
 import com.luckycolor.admin.modules.tenant.tenant.web.request.TenantStatusRequest;
 import com.luckycolor.admin.modules.tenant.tenant.web.response.TenantDetailResponse;
 import com.luckycolor.admin.modules.tenant.tenant.web.response.TenantPageResponse;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import com.luckycolor.admin.common.config.ConditionalOnPersistenceEnabled;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.server.ResponseStatusException;
@@ -22,7 +22,7 @@ import org.springframework.http.HttpStatus;
 
 @Service
 @TenantIgnore
-@ConditionalOnBean(TenantMapper.class)
+@ConditionalOnPersistenceEnabled
 public class TenantServiceImpl implements TenantService {
 
     private final TenantMapper tenantMapper;

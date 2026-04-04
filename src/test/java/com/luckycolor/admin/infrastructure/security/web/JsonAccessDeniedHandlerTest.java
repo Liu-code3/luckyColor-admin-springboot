@@ -40,7 +40,8 @@ class JsonAccessDeniedHandlerTest {
         handler.handle(request, response, new AccessDeniedException("Forbidden"));
 
         assertThat(response.getStatus()).isEqualTo(403);
-        assertThat(response.getContentAsString()).contains("\"code\":40300");
+        assertThat(response.getContentAsString()).contains("\"code\":1012001");
+        assertThat(response.getContentAsString()).contains("permission denied");
         verify(securityAuditLogService).recordAccessDenied(
             request,
             SecurityContextHolder.getContext().getAuthentication(),

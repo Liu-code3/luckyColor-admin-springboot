@@ -22,7 +22,11 @@ public class LoginAuditLoggerService implements LoginAuditService {
     public void recordSuccess(Long userId, String username, Long tenantId, String remoteIp) {
         log.info("login success username={} tenantId={} remoteIp={}", username, tenantId, remoteIp);
         if (securityAuditLogService != null) {
-            securityAuditLogService.recordLoginSuccess(userId, username, tenantId, remoteIp);
+            try {
+                securityAuditLogService.recordLoginSuccess(userId, username, tenantId, remoteIp);
+            } catch (RuntimeException exception) {
+                log.warn("failed to persist login success audit username={} tenantId={}", username, tenantId, exception);
+            }
         }
     }
 
@@ -30,7 +34,11 @@ public class LoginAuditLoggerService implements LoginAuditService {
     public void recordFailure(Long userId, String username, Long tenantId, String remoteIp, String reason) {
         log.warn("login failure username={} tenantId={} remoteIp={} reason={}", username, tenantId, remoteIp, reason);
         if (securityAuditLogService != null) {
-            securityAuditLogService.recordLoginFailure(userId, username, tenantId, remoteIp, reason);
+            try {
+                securityAuditLogService.recordLoginFailure(userId, username, tenantId, remoteIp, reason);
+            } catch (RuntimeException exception) {
+                log.warn("failed to persist login failure audit username={} tenantId={}", username, tenantId, exception);
+            }
         }
     }
 }

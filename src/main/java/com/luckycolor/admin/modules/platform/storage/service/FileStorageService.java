@@ -8,4 +8,6 @@ public interface FileStorageService {
     FileUploadResponse upload(MultipartFile file);
 
     StoredFile download(String relativePath);
+
+    boolean delete(String relativePath);
 }

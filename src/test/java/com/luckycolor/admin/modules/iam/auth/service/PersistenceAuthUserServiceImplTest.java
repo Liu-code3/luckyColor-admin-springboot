@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.luckycolor.admin.infrastructure.tenant.service.TenantExternalIdService;
 import com.luckycolor.admin.modules.iam.auth.config.LocalAuthProperties;
 import com.luckycolor.admin.modules.iam.auth.model.AuthUser;
 import com.luckycolor.admin.modules.iam.auth.service.impl.LocalAuthUserServiceImpl;
@@ -26,7 +27,8 @@ class PersistenceAuthUserServiceImplTest {
         PersistenceAuthUserServiceImpl service = new PersistenceAuthUserServiceImpl(
             systemUserMapper,
             systemRoleMapper,
-            new LocalAuthUserServiceImpl(buildLocalAuthProperties())
+            new LocalAuthUserServiceImpl(buildLocalAuthProperties()),
+            new TenantExternalIdService(null)
         );
 
         SystemUserDO user = new SystemUserDO();
@@ -76,7 +78,8 @@ class PersistenceAuthUserServiceImplTest {
         PersistenceAuthUserServiceImpl service = new PersistenceAuthUserServiceImpl(
             systemUserMapper,
             systemRoleMapper,
-            new LocalAuthUserServiceImpl(buildLocalAuthProperties())
+            new LocalAuthUserServiceImpl(buildLocalAuthProperties()),
+            new TenantExternalIdService(null)
         );
 
         when(systemUserMapper.selectOne(any())).thenReturn(null);

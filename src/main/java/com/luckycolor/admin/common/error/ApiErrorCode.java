@@ -2,7 +2,25 @@ package com.luckycolor.admin.common.error;
 
 public final class ApiErrorCode {
 
-    public static final int SUCCESS = 0;
+    public static final int SUCCESS = 200;
+
+    public static final int AUTH_LOGIN_FAILED = 1011001;
+
+    public static final int AUTH_ACCOUNT_DISABLED = 1011002;
+
+    public static final int AUTH_CAPTCHA_INVALID = 1011004;
+
+    public static final int AUTH_CAPTCHA_TOKEN_INVALID = 1011005;
+
+    public static final int AUTH_TOKEN_EXPIRED = 1011007;
+
+    public static final int AUTH_TOKEN_INVALID = 1011008;
+
+    public static final int AUTH_REFRESH_TOKEN_EXPIRED = 1011009;
+
+    public static final int AUTH_REFRESH_TOKEN_INVALID = 1011010;
+
+    public static final int PERMISSION_DENIED = 1012001;
 
     public static final int BAD_REQUEST = 40000;
 

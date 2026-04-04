@@ -9,13 +9,13 @@ import com.luckycolor.admin.modules.tenant.audit.mapper.TenantAuditLogMapper;
 import com.luckycolor.admin.modules.tenant.audit.service.TenantAuditLogService;
 import com.luckycolor.admin.modules.tenant.audit.web.request.TenantAuditLogPageQuery;
 import com.luckycolor.admin.modules.tenant.audit.web.response.TenantAuditLogPageResponse;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import com.luckycolor.admin.common.config.ConditionalOnPersistenceEnabled;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 @Service
 @TenantIgnore
-@ConditionalOnBean(TenantAuditLogMapper.class)
+@ConditionalOnPersistenceEnabled
 public class TenantAuditLogServiceImpl implements TenantAuditLogService {
 
     private final TenantAuditLogMapper tenantAuditLogMapper;

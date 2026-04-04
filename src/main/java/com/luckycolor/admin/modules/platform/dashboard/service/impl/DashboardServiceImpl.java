@@ -25,18 +25,11 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import com.luckycolor.admin.common.config.ConditionalOnPersistenceEnabled;
 import org.springframework.stereotype.Service;
 
 @Service
-@ConditionalOnBean({
-    TenantMapper.class,
-    SystemUserMapper.class,
-    SystemRoleMapper.class,
-    MenuMapper.class,
-    NoticeMapper.class,
-    SecurityAuditLogMapper.class
-})
+@ConditionalOnPersistenceEnabled
 public class DashboardServiceImpl implements DashboardService {
 
     private static final String LOGIN_SUCCESS = "LOGIN_SUCCESS";

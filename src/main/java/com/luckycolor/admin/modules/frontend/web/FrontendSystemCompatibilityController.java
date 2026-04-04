@@ -19,6 +19,7 @@ import com.luckycolor.admin.modules.system.department.web.request.SystemDepartme
 import com.luckycolor.admin.modules.system.menu.dataobject.MenuDO;
 import com.luckycolor.admin.modules.system.menu.mapper.MenuMapper;
 import com.luckycolor.admin.modules.system.menu.service.MenuService;
+import com.luckycolor.admin.modules.system.menu.support.FrontendMenuContractMapper;
 import com.luckycolor.admin.modules.system.menu.web.request.MenuSaveRequest;
 import com.luckycolor.admin.modules.system.menu.web.request.MenuStatusRequest;
 import com.luckycolor.admin.modules.system.role.dataobject.SystemRoleDO;
@@ -605,17 +606,17 @@ public class FrontendSystemCompatibilityController {
             normalizeParentId(menu.getParentId()),
             menu.getId(),
             menu.getMenuName(),
-            defaultString(menu.getRouteName(), "menu" + menu.getId()),
+            FrontendMenuContractMapper.resolveRouteName(menu),
             toFrontendMenuType(menu.getMenuType()),
-            resolveMenuPath(menu, menusById),
+            FrontendMenuContractMapper.resolvePath(menu, menusById),
             menuKey,
             resolvePermissionCode(menu, menuKey),
             defaultString(menu.getIcon(), ""),
             defaultString(menu.getLayout(), "default"),
             isVisible,
             menu.getStatus() == null || menu.getStatus() == 0,
-            defaultString(menu.getComponent(), ""),
-            emptyToNull(menu.getRedirect()),
+            FrontendMenuContractMapper.resolveComponent(menu),
+            FrontendMenuContractMapper.resolveRedirect(menu),
             meta,
             menu.getSort() == null ? 0 : menu.getSort(),
             toIsoInstant(menu.getCreateTime()),

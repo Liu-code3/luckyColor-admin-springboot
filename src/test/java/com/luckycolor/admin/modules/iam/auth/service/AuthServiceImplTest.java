@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 import com.luckycolor.admin.infrastructure.security.config.SecurityJwtProperties;
 import com.luckycolor.admin.infrastructure.security.jwt.JwtAuthenticatedUser;
 import com.luckycolor.admin.infrastructure.security.jwt.JwtTokenService;
+import com.luckycolor.admin.infrastructure.tenant.service.TenantExternalIdService;
 import com.luckycolor.admin.modules.iam.audit.service.SecurityAuditLogService;
 import com.luckycolor.admin.modules.iam.auth.config.AuthAccessProperties;
 import com.luckycolor.admin.modules.iam.auth.config.LocalAuthProperties;
@@ -42,6 +43,7 @@ class AuthServiceImplTest {
         PasswordEncoder passwordEncoder = Mockito.mock(PasswordEncoder.class);
         when(passwordEncoder.matches("admin123", "$2a$encoded-password")).thenReturn(true);
         when(jwtTokenService.createAccessToken(1L, "admin", 1L, List.of("ROLE_SUPER_ADMIN"))).thenReturn("jwt-token");
+        when(jwtTokenService.createRefreshToken(1L, "admin", 1L)).thenReturn("refresh-token");
         AuthService authService = new AuthServiceImpl(
             new LocalAuthUserServiceImpl(buildAuthProperties("$2a$encoded-password", 0)),
             passwordEncoder,
@@ -53,15 +55,17 @@ class AuthServiceImplTest {
             loginAuditService,
             null,
             loginCaptchaService,
-            null
+            null,
+            buildTenantExternalIdService()
         );
 
         AuthLoginResponse response = authService.login(buildLoginRequest("admin123"));
 
         assertThat(response.accessToken()).isEqualTo("jwt-token");
+        assertThat(response.refreshToken()).isEqualTo("refresh-token");
         assertThat(response.tokenType()).isEqualTo("Bearer");
         assertThat(response.userId()).isEqualTo(1L);
-        assertThat(response.tenantId()).isEqualTo(1L);
+        assertThat(response.tenantId()).isEqualTo("tenant_001");
         verify(loginCaptchaService).validateCaptcha("captcha-1", "ABCD");
         verify(loginAuditService).recordSuccess(1L, "admin", 1L, "127.0.0.1");
     }
@@ -77,7 +81,7 @@ class AuthServiceImplTest {
             new AuthAccessSnapshotResponse(
                 new AuthAccessSnapshotResponse.AuthAccessUserResponse(
                     1L,
-                    1L,
+                    "tenant_001",
                     "admin",
                     "System Admin",
                     List.of("ROLE_SUPER_ADMIN"),
@@ -99,7 +103,8 @@ class AuthServiceImplTest {
             Mockito.mock(LoginAuditService.class),
             null,
             null,
-            null
+            null,
+            buildTenantExternalIdService()
         );
 
         AuthLoginResponse loginResponse = authService.login(buildLoginRequest("admin123"));
@@ -132,7 +137,8 @@ class AuthServiceImplTest {
             loginAuditService,
             null,
             null,
-            null
+            null,
+            buildTenantExternalIdService()
         );
         AuthLoginRequest request = buildLoginRequest("admin123");
         request.setUsername("missing");
@@ -161,7 +167,8 @@ class AuthServiceImplTest {
             loginAuditService,
             null,
             null,
-            null
+            null,
+            buildTenantExternalIdService()
         );
         AuthLoginRequest request = buildLoginRequest("wrong");
 
@@ -187,7 +194,8 @@ class AuthServiceImplTest {
             loginAuditService,
             null,
             null,
-            null
+            null,
+            buildTenantExternalIdService()
         );
 
         assertThatThrownBy(() -> authService.login(buildLoginRequest("admin123")))
@@ -210,7 +218,8 @@ class AuthServiceImplTest {
             Mockito.mock(LoginAuditService.class),
             null,
             null,
-            null
+            null,
+            buildTenantExternalIdService()
         );
 
         assertThatThrownBy(() -> authService.login(buildLoginRequest("admin123")))
@@ -224,6 +233,7 @@ class AuthServiceImplTest {
         SecurityAuditLogService securityAuditLogService = Mockito.mock(SecurityAuditLogService.class);
         InMemoryAuthTokenSessionService tokenSessionService = new InMemoryAuthTokenSessionService();
         when(jwtTokenService.resolveExpiration("jwt-token")).thenReturn(Instant.now().plusSeconds(3600));
+        when(jwtTokenService.resolveRefreshExpiration("refresh-token")).thenReturn(Instant.now().plusSeconds(86400));
         AuthService authService = new AuthServiceImpl(
             new LocalAuthUserServiceImpl(buildAuthProperties("admin123", 0)),
             Mockito.mock(PasswordEncoder.class),
@@ -235,12 +245,19 @@ class AuthServiceImplTest {
             Mockito.mock(LoginAuditService.class),
             securityAuditLogService,
             null,
-            null
+            null,
+            buildTenantExternalIdService()
         );
 
-        authService.logout(new JwtAuthenticatedUser(1L, "admin", 1L, List.of("ROLE_SUPER_ADMIN")), "jwt-token", "127.0.0.1");
+        authService.logout(
+            new JwtAuthenticatedUser(1L, "admin", 1L, List.of("ROLE_SUPER_ADMIN")),
+            "jwt-token",
+            "refresh-token",
+            "127.0.0.1"
+        );
 
         assertThat(tokenSessionService.isRevoked("jwt-token")).isTrue();
+        assertThat(tokenSessionService.isRevoked("refresh-token")).isTrue();
         verify(securityAuditLogService).recordLogout(1L, "admin", 1L, "127.0.0.1");
     }
 
@@ -257,7 +274,8 @@ class AuthServiceImplTest {
             Mockito.mock(LoginAuditService.class),
             null,
             null,
-            null
+            null,
+            buildTenantExternalIdService()
         );
 
         AuthProfileResponse response = authService.getProfile(
@@ -266,6 +284,7 @@ class AuthServiceImplTest {
 
         assertThat(response.username()).isEqualTo("admin");
         assertThat(response.nickname()).isEqualTo("System Admin");
+        assertThat(response.tenantId()).isEqualTo("tenant_001");
         assertThat(response.roles()).containsExactly("ROLE_SUPER_ADMIN");
     }
 
@@ -282,13 +301,15 @@ class AuthServiceImplTest {
             Mockito.mock(LoginAuditService.class),
             null,
             null,
-            null
+            null,
+            buildTenantExternalIdService()
         );
 
         AuthPermissionSnapshotResponse response = authService.getPermissionSnapshot(
             new JwtAuthenticatedUser(1L, "admin", 1L, List.of("ROLE_SUPER_ADMIN"))
         );
 
+        assertThat(response.tenantId()).isEqualTo("tenant_001");
         assertThat(response.roles()).containsExactly("ROLE_SUPER_ADMIN");
         assertThat(response.permissions()).containsExactly("system:user:query", "system:user:create");
     }
@@ -306,7 +327,8 @@ class AuthServiceImplTest {
             Mockito.mock(LoginAuditService.class),
             null,
             null,
-            null
+            null,
+            buildTenantExternalIdService()
         );
 
         List<AuthRouteResponse> response = authService.getRoutes(
@@ -357,7 +379,8 @@ class AuthServiceImplTest {
             Mockito.mock(LoginAuditService.class),
             null,
             null,
-            null
+            null,
+            buildTenantExternalIdService()
         );
 
         AuthAccessSnapshotResponse response = authService.getAccessSnapshot(
@@ -404,6 +427,10 @@ class AuthServiceImplTest {
         LoginCaptchaProperties properties = new LoginCaptchaProperties();
         properties.setEnabled(enabled);
         return properties;
+    }
+
+    private TenantExternalIdService buildTenantExternalIdService() {
+        return new TenantExternalIdService(null);
     }
 
     private AuthAccessProperties buildAccessProperties() {

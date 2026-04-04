@@ -24,6 +24,10 @@ public class TenancyProperties {
     private List<String> ignorePaths = new ArrayList<>(List.of(
         "/auth/captcha",
         "/api/auth/captcha",
+        "/auth/captcha/challenge",
+        "/api/auth/captcha/challenge",
+        "/auth/captcha/verify",
+        "/api/auth/captcha/verify",
         "/auth/login",
         "/api/auth/login",
         "/health",
@@ -46,7 +50,8 @@ public class TenancyProperties {
         "sys_tenant_package",
         "sys_tenant_audit_log",
         "sys_tenant_bootstrap_record",
-        "sys_security_audit_log"
+        "sys_security_audit_log",
+        "sys_menu"
     ));
 
     public boolean isIgnoredPath(String path) {

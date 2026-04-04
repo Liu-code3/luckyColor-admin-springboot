@@ -11,14 +11,14 @@ import com.luckycolor.admin.modules.system.config.web.request.SystemConfigSaveRe
 import com.luckycolor.admin.modules.system.config.web.response.SystemConfigDetailResponse;
 import com.luckycolor.admin.modules.system.config.web.response.SystemConfigPageResponse;
 import java.util.List;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import com.luckycolor.admin.common.config.ConditionalOnPersistenceEnabled;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
-@ConditionalOnBean(SystemConfigMapper.class)
+@ConditionalOnPersistenceEnabled
 public class SystemConfigServiceImpl implements SystemConfigService {
 
     private static final String SENSITIVE_MASK = "******";

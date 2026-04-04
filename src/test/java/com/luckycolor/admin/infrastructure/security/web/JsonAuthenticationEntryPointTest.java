@@ -27,7 +27,8 @@ class JsonAuthenticationEntryPointTest {
         entryPoint.commence(request, response, new BadCredentialsException("Bad credentials"));
 
         assertThat(response.getStatus()).isEqualTo(401);
-        assertThat(response.getContentAsString()).contains("\"code\":40100");
+        assertThat(response.getContentAsString()).contains("\"code\":1011008");
+        assertThat(response.getContentAsString()).contains("access token invalid, please sign in again");
         verify(securityAuditLogService).recordUnauthorized(request, "TOKEN_REVOKED");
     }
 }

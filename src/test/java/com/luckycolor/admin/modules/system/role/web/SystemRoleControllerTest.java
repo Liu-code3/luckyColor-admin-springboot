@@ -33,7 +33,7 @@ class SystemRoleControllerTest {
 
         mockMvc.perform(get("/admin/roles/page").param("roleCode", "ROLE"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.code").value(0))
+            .andExpect(jsonPath("$.code").value(200))
             .andExpect(jsonPath("$.data.list[0].roleCode").value("ROLE_ADMIN"));
     }
 

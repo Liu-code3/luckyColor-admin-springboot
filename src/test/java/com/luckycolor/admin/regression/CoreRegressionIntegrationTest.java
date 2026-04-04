@@ -16,6 +16,7 @@ import com.luckycolor.admin.modules.system.config.service.SystemConfigService;
 import com.luckycolor.admin.modules.system.config.web.SystemConfigController;
 import com.luckycolor.admin.modules.system.config.web.response.SystemConfigPageResponse;
 import com.luckycolor.admin.modules.system.dictionary.cache.service.DictionaryCatalogCacheService;
+import com.luckycolor.admin.modules.system.dictionary.catalog.web.DictionaryCatalogController;
 import com.luckycolor.admin.modules.system.dictionary.catalog.web.response.DictionaryCatalogItemResponse;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -67,15 +68,15 @@ class CoreRegressionIntegrationTest {
     void shouldReturnHealthStatusWithoutAuthentication() throws Exception {
         mockMvc.perform(get("/health"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.code").value(0))
-            .andExpect(jsonPath("$.data.status").value("UP"));
+            .andExpect(jsonPath("$.code").value(200))
+            .andExpect(jsonPath("$.data.status").value("ok"));
     }
 
     @Test
     void shouldReturnVersionInfoWithoutAuthentication() throws Exception {
         mockMvc.perform(get("/version"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.code").value(0))
+            .andExpect(jsonPath("$.code").value(200))
             .andExpect(jsonPath("$.data.version").value("1.0.0-alpha.1"))
             .andExpect(jsonPath("$.data.releaseStage").value("alpha"));
     }
@@ -87,7 +88,7 @@ class CoreRegressionIntegrationTest {
         mockMvc.perform(get("/auth/profile").header("Authorization", "Bearer " + token))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.username").value("admin"))
-            .andExpect(jsonPath("$.data.tenantId").value(1))
+            .andExpect(jsonPath("$.data.tenantId").value("tenant_001"))
             .andExpect(jsonPath("$.data.roles[0]").value("ROLE_SUPER_ADMIN"));
     }
 
@@ -100,8 +101,8 @@ class CoreRegressionIntegrationTest {
                     {"username":"admin","password":"wrong-password"}
                     """))
             .andExpect(status().isUnauthorized())
-            .andExpect(jsonPath("$.code").value(40100))
-            .andExpect(jsonPath("$.message").value("Username or password is incorrect"));
+            .andExpect(jsonPath("$.code").value(1011001))
+            .andExpect(jsonPath("$.message").value("username or password is incorrect"));
     }
 
     @Test
@@ -172,6 +173,13 @@ class CoreRegressionIntegrationTest {
         @Bean
         SystemConfigController systemConfigController(SystemConfigService systemConfigService) {
             return new SystemConfigController(systemConfigService);
+        }
+
+        @Bean
+        DictionaryCatalogController dictionaryCatalogController(
+            DictionaryCatalogCacheService dictionaryCatalogCacheService
+        ) {
+            return new DictionaryCatalogController(dictionaryCatalogCacheService);
         }
     }
 }

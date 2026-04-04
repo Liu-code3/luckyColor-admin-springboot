@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS sys_tenant_package (
     PRIMARY KEY (id),
     KEY idx_sys_tenant_package_status (status),
     KEY idx_sys_tenant_package_sort (sort)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='租户套餐表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Tenant package';
 
 CREATE TABLE IF NOT EXISTS sys_tenant (
     id BIGINT NOT NULL,
@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS sys_tenant (
     KEY idx_sys_tenant_status (status),
     KEY idx_sys_tenant_expire_time (expire_time),
     CONSTRAINT fk_sys_tenant_package_id FOREIGN KEY (package_id) REFERENCES sys_tenant_package (id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='租户表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Tenant';
 
 CREATE TABLE IF NOT EXISTS sys_tenant_audit_log (
     id BIGINT NOT NULL,
@@ -49,7 +49,7 @@ CREATE TABLE IF NOT EXISTS sys_tenant_audit_log (
     KEY idx_sys_tenant_audit_log_target (target_type, target_id),
     KEY idx_sys_tenant_audit_log_action (action),
     KEY idx_sys_tenant_audit_log_create_time (create_time)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='租户审计日志表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Tenant audit log';
 
 CREATE TABLE IF NOT EXISTS sys_tenant_bootstrap_record (
     id BIGINT NOT NULL,
@@ -73,4 +73,4 @@ CREATE TABLE IF NOT EXISTS sys_tenant_bootstrap_record (
     KEY idx_sys_tenant_bootstrap_record_status (status),
     KEY idx_sys_tenant_bootstrap_record_bootstrap_time (bootstrap_time),
     CONSTRAINT fk_sys_tenant_bootstrap_record_tenant_id FOREIGN KEY (tenant_id) REFERENCES sys_tenant (id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='租户初始化记录表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Tenant bootstrap record';

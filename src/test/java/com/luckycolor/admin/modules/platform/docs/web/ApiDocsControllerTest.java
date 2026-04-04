@@ -23,7 +23,10 @@ class ApiDocsControllerTest {
             .andExpect(status().isOk())
             .andExpect(content().contentTypeCompatibleWith("text/html"))
             .andExpect(content().string(org.hamcrest.Matchers.containsString("/docs/assets/swagger-ui.css")))
-            .andExpect(content().string(org.hamcrest.Matchers.containsString("/v3/api-docs")));
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("/v3/api-docs")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("lang=\"zh-CN\"")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("LuckyColor 接口文档")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("示例值")));
     }
 
     @Test

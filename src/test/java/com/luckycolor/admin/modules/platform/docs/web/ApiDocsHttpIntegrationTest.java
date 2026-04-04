@@ -32,6 +32,8 @@ class ApiDocsHttpIntegrationTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).contains("SwaggerUIBundle");
         assertThat(response.getBody()).contains("/api/v3/api-docs");
+        assertThat(response.getBody()).contains("LuckyColor 接口文档");
+        assertThat(response.getBody()).contains("认证授权");
     }
 
     @Test

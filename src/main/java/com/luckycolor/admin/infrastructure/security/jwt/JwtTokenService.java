@@ -46,6 +46,20 @@ public class JwtTokenService {
             .compact();
     }
 
+    public String createRefreshToken(Long userId, String username, Long tenantId) {
+        Instant issuedAt = Instant.now();
+        Instant expiresAt = issuedAt.plus(jwtProperties.resolveRefreshExpiresIn());
+
+        return Jwts.builder()
+            .subject(username)
+            .issuedAt(Date.from(issuedAt))
+            .expiration(Date.from(expiresAt))
+            .claim(CLAIM_USER_ID, userId)
+            .claim(CLAIM_TENANT_ID, tenantId)
+            .signWith(buildRefreshSecretKey())
+            .compact();
+    }
+
     public JwtAccessTokenClaims parseAccessToken(String token) {
         Claims claims = Jwts.parser()
             .verifyWith(buildSecretKey())
@@ -61,9 +75,33 @@ public class JwtTokenService {
         );
     }
 
+    public JwtRefreshTokenClaims parseRefreshToken(String token) {
+        Claims claims = Jwts.parser()
+            .verifyWith(buildRefreshSecretKey())
+            .build()
+            .parseSignedClaims(token)
+            .getPayload();
+
+        return new JwtRefreshTokenClaims(
+            claims.get(CLAIM_USER_ID, Long.class),
+            claims.getSubject(),
+            claims.get(CLAIM_TENANT_ID, Long.class)
+        );
+    }
+
     public Instant resolveExpiration(String token) {
         Claims claims = Jwts.parser()
             .verifyWith(buildSecretKey())
+            .build()
+            .parseSignedClaims(token)
+            .getPayload();
+        Date expiration = claims.getExpiration();
+        return expiration == null ? null : expiration.toInstant();
+    }
+
+    public Instant resolveRefreshExpiration(String token) {
+        Claims claims = Jwts.parser()
+            .verifyWith(buildRefreshSecretKey())
             .build()
             .parseSignedClaims(token)
             .getPayload();
@@ -84,7 +122,15 @@ public class JwtTokenService {
     }
 
     private SecretKey buildSecretKey() {
-        return Keys.hmacShaKeyFor(hashSecret(jwtProperties.getSecret()));
+        return buildSecretKey(jwtProperties.getSecret());
+    }
+
+    private SecretKey buildRefreshSecretKey() {
+        return buildSecretKey(jwtProperties.resolveRefreshSecret());
+    }
+
+    private SecretKey buildSecretKey(String secret) {
+        return Keys.hmacShaKeyFor(hashSecret(secret));
     }
 
     private List<String> resolveRoles(Object rolesClaim) {

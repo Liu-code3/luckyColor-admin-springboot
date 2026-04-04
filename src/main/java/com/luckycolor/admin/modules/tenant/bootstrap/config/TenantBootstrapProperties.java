@@ -27,7 +27,7 @@ public class TenantBootstrapProperties {
 
         private String adminUsername = "admin";
 
-        private String adminNickname = "租户管理员";
+        private String adminNickname = "Tenant Admin";
 
         private Integer status = 0;
 

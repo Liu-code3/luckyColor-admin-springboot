@@ -32,7 +32,7 @@ class TenantPackageControllerTest {
 
         mockMvc.perform(get("/admin/tenant-packages/page").param("packageName", "标准"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.code").value(0))
+            .andExpect(jsonPath("$.code").value(200))
             .andExpect(jsonPath("$.data.total").value(1))
             .andExpect(jsonPath("$.data.list[0].packageName").value("标准版"));
     }

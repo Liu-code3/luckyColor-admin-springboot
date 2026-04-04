@@ -12,14 +12,14 @@ import com.luckycolor.admin.modules.system.notice.web.request.NoticeSaveRequest;
 import com.luckycolor.admin.modules.system.notice.web.response.NoticeDetailResponse;
 import com.luckycolor.admin.modules.system.notice.web.response.NoticePageResponse;
 import java.time.LocalDateTime;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import com.luckycolor.admin.common.config.ConditionalOnPersistenceEnabled;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
-@ConditionalOnBean(NoticeMapper.class)
+@ConditionalOnPersistenceEnabled
 public class NoticeServiceImpl implements NoticeService {
 
     private static final int DRAFT = 0;

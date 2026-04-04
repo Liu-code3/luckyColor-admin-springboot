@@ -30,7 +30,7 @@ class TenantAuditLogControllerTest {
 
         mockMvc.perform(get("/admin/tenant-audit-logs/page").param("tenantId", "1001"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.code").value(0))
+            .andExpect(jsonPath("$.code").value(200))
             .andExpect(jsonPath("$.data.total").value(1))
             .andExpect(jsonPath("$.data.list[0].action").value("UPDATE"));
     }

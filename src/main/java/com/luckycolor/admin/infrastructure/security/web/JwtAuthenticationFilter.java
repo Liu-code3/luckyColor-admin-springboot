@@ -4,6 +4,7 @@ import com.luckycolor.admin.infrastructure.security.jwt.JwtAccessTokenClaims;
 import com.luckycolor.admin.infrastructure.security.jwt.JwtAuthenticatedUser;
 import com.luckycolor.admin.infrastructure.security.jwt.JwtTokenService;
 import com.luckycolor.admin.modules.iam.auth.service.AuthTokenSessionService;
+import io.jsonwebtoken.ExpiredJwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -70,6 +71,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     private String resolveFailureReason(RuntimeException exception) {
+        if (exception instanceof ExpiredJwtException) {
+            return "TOKEN_EXPIRED";
+        }
         if (exception instanceof BadCredentialsException) {
             return "TOKEN_INVALID";
         }

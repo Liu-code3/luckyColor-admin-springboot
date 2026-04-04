@@ -6,6 +6,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.luckycolor.admin.common.config.ConditionalOnPersistenceEnabled;
 import com.luckycolor.admin.infrastructure.tenant.annotation.TenantIgnore;
+import com.luckycolor.admin.infrastructure.tenant.service.TenantExternalIdService;
 import com.luckycolor.admin.modules.iam.auth.model.AuthUser;
 import com.luckycolor.admin.modules.iam.auth.service.AuthAccessRouteService;
 import com.luckycolor.admin.modules.iam.auth.web.response.AuthAccessSnapshotResponse;
@@ -15,6 +16,7 @@ import com.luckycolor.admin.modules.iam.auth.web.response.AuthAccessSnapshotResp
 import com.luckycolor.admin.modules.iam.auth.web.response.AuthRouteResponse;
 import com.luckycolor.admin.modules.system.menu.dataobject.MenuDO;
 import com.luckycolor.admin.modules.system.menu.mapper.MenuMapper;
+import com.luckycolor.admin.modules.system.menu.support.FrontendMenuContractMapper;
 import com.luckycolor.admin.modules.system.role.dataobject.SystemRoleDO;
 import com.luckycolor.admin.modules.system.role.mapper.SystemRoleMapper;
 import java.time.LocalDateTime;
@@ -44,17 +46,20 @@ public class PersistenceAuthAccessRouteServiceImpl implements AuthAccessRouteSer
     private final MenuMapper menuMapper;
     private final AuthAccessRouteServiceImpl fallbackRouteService;
     private final ObjectMapper objectMapper;
+    private final TenantExternalIdService tenantExternalIdService;
 
     public PersistenceAuthAccessRouteServiceImpl(
         SystemRoleMapper systemRoleMapper,
         MenuMapper menuMapper,
         AuthAccessRouteServiceImpl fallbackRouteService,
-        ObjectMapper objectMapper
+        ObjectMapper objectMapper,
+        TenantExternalIdService tenantExternalIdService
     ) {
         this.systemRoleMapper = systemRoleMapper;
         this.menuMapper = menuMapper;
         this.fallbackRouteService = fallbackRouteService;
         this.objectMapper = objectMapper;
+        this.tenantExternalIdService = tenantExternalIdService;
     }
 
     @Override
@@ -73,7 +78,7 @@ public class PersistenceAuthAccessRouteServiceImpl implements AuthAccessRouteSer
             return fallbackRouteService.getAccessSnapshot(user);
         }
         List<String> menuCodeList = context.visibleMenus().stream()
-            .map(this::resolvePermissionCode)
+            .map(this::resolveMenuKey)
             .toList();
         LinkedHashSet<String> buttonCodes = new LinkedHashSet<>();
         context.buttonMenus().stream()
@@ -85,7 +90,7 @@ public class PersistenceAuthAccessRouteServiceImpl implements AuthAccessRouteSer
         return new AuthAccessSnapshotResponse(
             new AuthAccessUserResponse(
                 user.userId(),
-                user.tenantId(),
+                tenantExternalIdService.toExternalTenantId(user.tenantId()),
                 user.username(),
                 user.nickname(),
                 context.roles().stream().map(SystemRoleDO::getRoleCode).toList(),
@@ -94,7 +99,7 @@ public class PersistenceAuthAccessRouteServiceImpl implements AuthAccessRouteSer
             ),
             context.roles().stream()
                 .map(role -> new AuthAccessRoleResponse(
-                    role.getTenantId(),
+                    tenantExternalIdService.toExternalTenantId(role.getTenantId()),
                     String.valueOf(role.getId()),
                     role.getRoleName(),
                     role.getRoleCode()
@@ -181,10 +186,10 @@ public class PersistenceAuthAccessRouteServiceImpl implements AuthAccessRouteSer
             .sorted(Comparator.comparing(MenuDO::getSort, Comparator.nullsLast(Integer::compareTo))
                 .thenComparing(MenuDO::getId))
             .map(menu -> new AuthRouteResponse(
-                resolveMenuPath(menu, menusById),
-                defaultString(menu.getRouteName(), "menu" + menu.getId()),
-                defaultString(menu.getComponent(), ""),
-                emptyToNull(menu.getRedirect()),
+                FrontendMenuContractMapper.resolvePath(menu, menusById),
+                FrontendMenuContractMapper.resolveRouteName(menu),
+                FrontendMenuContractMapper.resolveComponent(menu),
+                FrontendMenuContractMapper.resolveRedirect(menu),
                 buildRouteMeta(menu),
                 buildRouteTree(menus, menu.getId(), menusById)
             ))
@@ -206,17 +211,17 @@ public class PersistenceAuthAccessRouteServiceImpl implements AuthAccessRouteSer
                     normalizeParentId(menu.getParentId()),
                     menu.getId(),
                     menu.getMenuName(),
-                    defaultString(menu.getRouteName(), "menu" + menu.getId()),
+                    FrontendMenuContractMapper.resolveRouteName(menu),
                     resolveMenuType(menu),
-                    resolveMenuPath(menu, menusById),
+                    FrontendMenuContractMapper.resolvePath(menu, menusById),
                     resolveMenuKey(menu),
                     resolvePermissionCode(menu),
                     defaultString(menu.getIcon(), ""),
                     defaultString(menu.getLayout(), ""),
                     menu.getVisible() == null || menu.getVisible() == 1,
                     menu.getStatus() == null || menu.getStatus() == 0,
-                    defaultString(menu.getComponent(), ""),
-                    emptyToNull(menu.getRedirect()),
+                    FrontendMenuContractMapper.resolveComponent(menu),
+                    FrontendMenuContractMapper.resolveRedirect(menu),
                     parseMeta(menu.getMeta()),
                     menu.getSort() == null ? 0 : menu.getSort(),
                     toIsoInstant(menu.getCreateTime()),
@@ -234,6 +239,7 @@ public class PersistenceAuthAccessRouteServiceImpl implements AuthAccessRouteSer
             meta.put("icon", menu.getIcon().trim());
         }
         meta.put("hidden", menu.getVisible() != null && menu.getVisible() != 1);
+        meta.put("keepAlive", menu.getKeepAlive() != null && menu.getKeepAlive() == 1);
         meta.put("order", menu.getSort() == null ? 0 : menu.getSort());
         meta.put("menuKey", resolveMenuKey(menu));
         meta.put("permissionCode", resolvePermissionCode(menu));
@@ -296,37 +302,6 @@ public class PersistenceAuthAccessRouteServiceImpl implements AuthAccessRouteSer
             return menu.getPermissionCode().trim();
         }
         return resolveMenuKey(menu);
-    }
-
-    private String resolveMenuPath(MenuDO menu, Map<Long, MenuDO> menusById) {
-        String currentPath = defaultString(menu.getRoutePath(), "");
-        if (currentPath.startsWith("/")) {
-            return normalizePath(currentPath);
-        }
-        Long parentId = normalizeParentId(menu.getParentId());
-        if (parentId == 0L) {
-            return normalizePath(currentPath);
-        }
-        MenuDO parent = menusById.get(parentId);
-        if (parent == null) {
-            return normalizePath(currentPath);
-        }
-        String parentPath = resolveMenuPath(parent, menusById);
-        if (!StringUtils.hasText(currentPath)) {
-            return parentPath;
-        }
-        return normalizePath(parentPath + "/" + currentPath);
-    }
-
-    private String normalizePath(String path) {
-        if (!StringUtils.hasText(path)) {
-            return "/";
-        }
-        String normalized = path.trim().replace('\\', '/');
-        if (!normalized.startsWith("/")) {
-            normalized = "/" + normalized;
-        }
-        return normalized.replaceAll("/+", "/");
     }
 
     private String defaultString(String value, String fallback) {

@@ -18,9 +18,9 @@ spring:
       database: ${REDIS_DATABASE:0}
       timeout: 3s
   flyway:
-    enabled: ${FLYWAY_ENABLED:false}
+    enabled: ${FLYWAY_ENABLED:true}
     locations: classpath:db/migration
-    baseline-on-migrate: true
+    baseline-on-migrate: ${FLYWAY_BASELINE_ON_MIGRATE:false}
 
 mybatis-plus:
   mapper-locations: classpath*:/mapper/**/*.xml
@@ -34,7 +34,7 @@ mybatis-plus:
       id-type: ASSIGN_ID
 
 server:
-  port: ${SERVER_PORT:3002}
+  port: ${SERVER_PORT:3001}
   servlet:
     context-path: /api
 
@@ -73,7 +73,7 @@ app:
       local-users:
         - user-id: 1
           username: admin
-          password: ${ADMIN_PASSWORD:admin123}
+          password: ${ADMIN_PASSWORD:123456}
           tenant-id: 1
           nickname: System Admin
           status: 0
@@ -84,6 +84,7 @@ app:
             - dashboard:query
             - file:upload
             - file:download
+            - file:delete
             - codegen:query
             - codegen:create
             - codegen:update
@@ -129,9 +130,11 @@ app:
             - tenant:query
             - tenant:create
             - tenant:update
+            - tenant:delete
             - tenant:package:query
             - tenant:package:create
             - tenant:package:update
+            - tenant:package:delete
         - user-id: 2
           username: tenant-operator
           password: ${TENANT_OPERATOR_PASSWORD:operator123}
@@ -244,6 +247,16 @@ app:
     ignore-paths:
       - /auth/captcha
       - /api/auth/captcha
+      - /auth/captcha/challenge
+      - /api/auth/captcha/challenge
+      - /auth/captcha/verify
+      - /api/auth/captcha/verify
+      - /auth/login
+      - /api/auth/login
+      - /auth/refresh
+      - /api/auth/refresh
+      - /file
+      - /api/file
       - /health
       - /api/health
       - /version
@@ -251,6 +264,7 @@ app:
       - /docs
       - /api/docs
       - /swagger-ui
+      - /api/swagger-ui
       - /v3/api-docs
       - /api/v3/api-docs
       - /actuator
@@ -261,7 +275,9 @@ app:
       - sys_tenant_package
       - sys_tenant_audit_log
       - sys_tenant_bootstrap_record
+      - sys_tenant_profile
       - sys_security_audit_log
+      - sys_menu
     bootstrap:
       templates:
         - code: default

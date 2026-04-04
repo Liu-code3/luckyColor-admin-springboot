@@ -18,8 +18,8 @@ public record AuthAccessSnapshotResponse(
     public record AuthAccessUserResponse(
         @Schema(description = "Current user ID", example = "1")
         Long id,
-        @Schema(description = "Current tenant ID", example = "1")
-        Long tenantId,
+        @Schema(description = "Current tenant ID", example = "tenant_001")
+        String tenantId,
         @Schema(description = "Current username", example = "admin")
         String username,
         @Schema(description = "Current user nickname", example = "System Admin")
@@ -35,8 +35,8 @@ public record AuthAccessSnapshotResponse(
 
     @Schema(description = "Current role snapshot")
     public record AuthAccessRoleResponse(
-        @Schema(description = "Current tenant ID", example = "1")
-        Long tenantId,
+        @Schema(description = "Current tenant ID", example = "tenant_001")
+        String tenantId,
         @Schema(description = "Role ID", example = "1")
         String id,
         @Schema(description = "Role name", example = "ROLE_SUPER_ADMIN")

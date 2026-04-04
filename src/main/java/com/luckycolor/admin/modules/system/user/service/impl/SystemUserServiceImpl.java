@@ -24,7 +24,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import com.luckycolor.admin.common.config.ConditionalOnPersistenceEnabled;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.lang.Nullable;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -34,7 +35,7 @@ import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.multipart.MultipartFile;
 
 @Service
-@ConditionalOnBean(SystemUserMapper.class)
+@ConditionalOnPersistenceEnabled
 public class SystemUserServiceImpl implements SystemUserService {
 
     private final SystemUserMapper systemUserMapper;
@@ -43,6 +44,7 @@ public class SystemUserServiceImpl implements SystemUserService {
     private final PasswordEncoder passwordEncoder;
     private final SystemRoleMapper systemRoleMapper;
 
+    @Autowired
     public SystemUserServiceImpl(
         SystemUserMapper systemUserMapper,
         DataScopeConditionBuilder dataScopeConditionBuilder,

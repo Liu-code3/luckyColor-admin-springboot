@@ -3,12 +3,14 @@ package com.luckycolor.admin.modules.iam.auth.web;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.luckycolor.admin.infrastructure.security.config.SecurityJwtProperties;
 import com.luckycolor.admin.infrastructure.security.jwt.JwtAuthenticatedUser;
 import com.luckycolor.admin.infrastructure.security.jwt.JwtTokenService;
 import com.luckycolor.admin.modules.iam.auth.config.LoginCaptchaProperties;
@@ -30,6 +32,9 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockCookie;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.test.web.servlet.MockMvc;
@@ -46,7 +51,7 @@ class AuthControllerTest {
             new LoginCaptchaResponse("captcha-1", "data:image/svg+xml;base64,abc")
         );
         MockMvc mockMvc = MockMvcBuilders.standaloneSetup(
-            new AuthController(authService, loginCaptchaService, null, loginCaptchaProperties, Mockito.mock(JwtTokenService.class))
+            buildController(authService, loginCaptchaService, null, Mockito.mock(JwtTokenService.class))
         ).build();
 
         mockMvc.perform(get("/auth/captcha"))
@@ -65,7 +70,7 @@ class AuthControllerTest {
             new LegacyLoginCaptchaChallengeResponse("challenge-1", "<svg></svg>", "请计算结果", Instant.now())
         );
         MockMvc mockMvc = MockMvcBuilders.standaloneSetup(
-            new AuthController(authService, null, legacyLoginCaptchaService, loginCaptchaProperties, Mockito.mock(JwtTokenService.class))
+            buildController(authService, null, legacyLoginCaptchaService, Mockito.mock(JwtTokenService.class))
         ).build();
 
         mockMvc.perform(get("/auth/captcha/challenge"))
@@ -84,24 +89,27 @@ class AuthControllerTest {
                 "jwt-token",
                 "Bearer",
                 7200,
+                "refresh-token",
                 1L,
                 "admin",
                 "System Admin",
-                1L,
+                "tenant_001",
                 List.of("ROLE_SUPER_ADMIN"),
                 List.of("dashboard:query"),
                 List.of("dashboard:query"),
                 List.of("dashboard:query"),
                 List.of("dashboard:query"),
+                List.of("main_analysis"),
                 "TENANT",
                 List.of(),
                 new AuthLoginUserResponse(
                     1L,
-                    1L,
+                    "tenant_001",
                     null,
                     "admin",
                     "System Admin",
                     List.of("ROLE_SUPER_ADMIN"),
+                    List.of("main_analysis"),
                     List.of("dashboard:query"),
                     List.of("dashboard:query"),
                     List.of("dashboard:query"),
@@ -112,7 +120,7 @@ class AuthControllerTest {
             )
         );
         MockMvc mockMvc = MockMvcBuilders.standaloneSetup(
-            new AuthController(authService, null, null, loginCaptchaProperties, Mockito.mock(JwtTokenService.class))
+            buildController(authService, null, null, Mockito.mock(JwtTokenService.class))
         ).build();
 
         mockMvc.perform(post("/auth/login")
@@ -123,7 +131,7 @@ class AuthControllerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.accessToken").value("jwt-token"))
             .andExpect(jsonPath("$.data.username").value("admin"))
-            .andExpect(jsonPath("$.data.tenantId").value(1));
+            .andExpect(jsonPath("$.data.tenantId").value("tenant_001"));
     }
 
     @Test
@@ -136,10 +144,11 @@ class AuthControllerTest {
                 1L,
                 "admin",
                 "System Admin",
-                1L,
+                "tenant_001",
                 null,
                 List.of("ROLE_SUPER_ADMIN"),
                 List.of("ROLE_SUPER_ADMIN"),
+                List.of("main_system_users"),
                 List.of("system:user:query"),
                 List.of("system:user:query"),
                 List.of("system:user:query"),
@@ -148,13 +157,7 @@ class AuthControllerTest {
                 List.of()
             )
         );
-        AuthController controller = new AuthController(
-            authService,
-            null,
-            null,
-            loginCaptchaProperties,
-            Mockito.mock(JwtTokenService.class)
-        );
+        AuthController controller = buildController(authService, null, null, Mockito.mock(JwtTokenService.class));
 
         Authentication authentication = buildAuthentication();
         AuthProfileResponse response = controller.profile(authentication).data();
@@ -168,15 +171,9 @@ class AuthControllerTest {
         AuthService authService = Mockito.mock(AuthService.class);
         LoginCaptchaProperties loginCaptchaProperties = new LoginCaptchaProperties();
         when(authService.getPermissionSnapshot(any())).thenReturn(
-            new AuthPermissionSnapshotResponse(1L, 1L, List.of("ROLE_SUPER_ADMIN"), List.of("system:user:query"))
+            new AuthPermissionSnapshotResponse(1L, "tenant_001", List.of("ROLE_SUPER_ADMIN"), List.of("system:user:query"))
         );
-        AuthController controller = new AuthController(
-            authService,
-            null,
-            null,
-            loginCaptchaProperties,
-            Mockito.mock(JwtTokenService.class)
-        );
+        AuthController controller = buildController(authService, null, null, Mockito.mock(JwtTokenService.class));
 
         Authentication authentication = buildAuthentication();
         AuthPermissionSnapshotResponse response = controller.permissions(authentication).data();
@@ -190,12 +187,16 @@ class AuthControllerTest {
         LoginCaptchaProperties loginCaptchaProperties = new LoginCaptchaProperties();
         JwtTokenService jwtTokenService = Mockito.mock(JwtTokenService.class);
         when(jwtTokenService.resolveBearerToken("Bearer jwt-token")).thenReturn("jwt-token");
-        AuthController controller = new AuthController(authService, null, null, loginCaptchaProperties, jwtTokenService);
+        AuthController controller = buildController(authService, null, null, jwtTokenService);
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setCookies(new MockCookie("lc_refresh_token", "refresh-token"));
+        MockHttpServletResponse response = new MockHttpServletResponse();
 
-        Boolean response = controller.logout(buildAuthentication(), "Bearer jwt-token", new org.springframework.mock.web.MockHttpServletRequest()).data();
+        Boolean result = controller.logout(buildAuthentication(), "Bearer jwt-token", request, response).data();
 
-        assertThat(response).isTrue();
-        Mockito.verify(authService).logout(any(), eq("jwt-token"), any());
+        assertThat(result).isTrue();
+        verify(authService).logout(any(), eq("jwt-token"), eq("refresh-token"), any());
+        assertThat(response.getHeader("Set-Cookie")).contains("lc_refresh_token=");
     }
 
     @Test
@@ -222,13 +223,7 @@ class AuthControllerTest {
                 )
             )
         );
-        AuthController controller = new AuthController(
-            authService,
-            null,
-            null,
-            loginCaptchaProperties,
-            Mockito.mock(JwtTokenService.class)
-        );
+        AuthController controller = buildController(authService, null, null, Mockito.mock(JwtTokenService.class));
 
         List<AuthRouteResponse> response = controller.routes(buildAuthentication()).data();
 
@@ -245,7 +240,7 @@ class AuthControllerTest {
             new AuthAccessSnapshotResponse(
                 new AuthAccessSnapshotResponse.AuthAccessUserResponse(
                     1L,
-                    1L,
+                    "tenant_001",
                     "admin",
                     "System Admin",
                     List.of("ROLE_SUPER_ADMIN"),
@@ -254,8 +249,8 @@ class AuthControllerTest {
                 ),
                 List.of(
                     new AuthAccessSnapshotResponse.AuthAccessRoleResponse(
-                        1L,
-                        "ROLE_SUPER_ADMIN",
+                        "tenant_001",
+                        "1",
                         "ROLE_SUPER_ADMIN",
                         "ROLE_SUPER_ADMIN"
                     )
@@ -285,13 +280,7 @@ class AuthControllerTest {
                 )
             )
         );
-        AuthController controller = new AuthController(
-            authService,
-            null,
-            null,
-            loginCaptchaProperties,
-            Mockito.mock(JwtTokenService.class)
-        );
+        AuthController controller = buildController(authService, null, null, Mockito.mock(JwtTokenService.class));
 
         AuthAccessSnapshotResponse response = controller.access(buildAuthentication()).data();
 
@@ -305,5 +294,27 @@ class AuthControllerTest {
     private Authentication buildAuthentication() {
         JwtAuthenticatedUser principal = new JwtAuthenticatedUser(1L, "admin", 1L, List.of("ROLE_SUPER_ADMIN"));
         return new UsernamePasswordAuthenticationToken(principal, "jwt-token", List.of());
+    }
+
+    private AuthController buildController(
+        AuthService authService,
+        LoginCaptchaService loginCaptchaService,
+        LegacyLoginCaptchaService legacyLoginCaptchaService,
+        JwtTokenService jwtTokenService
+    ) {
+        return new AuthController(
+            authService,
+            loginCaptchaService,
+            legacyLoginCaptchaService,
+            new LoginCaptchaProperties(),
+            jwtTokenService,
+            buildJwtProperties()
+        );
+    }
+
+    private SecurityJwtProperties buildJwtProperties() {
+        SecurityJwtProperties properties = new SecurityJwtProperties();
+        properties.setRefreshCookieName("lc_refresh_token");
+        return properties;
     }
 }

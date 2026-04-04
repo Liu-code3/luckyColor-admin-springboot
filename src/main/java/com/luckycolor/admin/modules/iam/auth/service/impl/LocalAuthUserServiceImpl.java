@@ -18,12 +18,19 @@ public class LocalAuthUserServiceImpl implements AuthUserService {
 
     @Override
     public AuthUser findByUsername(String username) {
+        return findByUsername(username, null);
+    }
+
+    @Override
+    public AuthUser findByUsername(String username, String tenantExternalId) {
         if (!StringUtils.hasText(username)) {
             return null;
         }
         return localAuthProperties.getLocalUsers().stream()
             .filter(item -> StringUtils.hasText(item.getUsername()))
             .filter(item -> item.getUsername().equalsIgnoreCase(username))
+            .filter(item -> !StringUtils.hasText(tenantExternalId)
+                || String.valueOf(item.getTenantId()).equals(tenantExternalId.trim()))
             .findFirst()
             .map(this::toAuthUser)
             .orElse(null);

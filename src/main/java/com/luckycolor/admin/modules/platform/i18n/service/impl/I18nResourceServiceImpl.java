@@ -12,14 +12,14 @@ import com.luckycolor.admin.modules.platform.i18n.web.request.I18nResourceStatus
 import com.luckycolor.admin.modules.platform.i18n.web.response.I18nResourceDetailResponse;
 import com.luckycolor.admin.modules.platform.i18n.web.response.I18nResourcePageResponse;
 import java.util.List;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import com.luckycolor.admin.common.config.ConditionalOnPersistenceEnabled;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
-@ConditionalOnBean(I18nResourceMapper.class)
+@ConditionalOnPersistenceEnabled
 public class I18nResourceServiceImpl implements I18nResourceService {
 
     private static final int DEFAULT_VERSION = 1;

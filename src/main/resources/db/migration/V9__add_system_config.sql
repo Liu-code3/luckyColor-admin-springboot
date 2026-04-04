@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS sys_config (
     config_key VARCHAR(100) NOT NULL,
     config_name VARCHAR(100) NOT NULL,
     config_value VARCHAR(2000) NOT NULL,
-    sensitive TINYINT NOT NULL DEFAULT 0,
+    sensitive_flag TINYINT NOT NULL DEFAULT 0,
     status TINYINT NOT NULL DEFAULT 0,
     sort INT NOT NULL DEFAULT 0,
     remark VARCHAR(255) NULL,

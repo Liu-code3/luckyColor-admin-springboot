@@ -3,6 +3,7 @@ package com.luckycolor.admin.modules.iam.auth.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.luckycolor.admin.common.config.ConditionalOnPersistenceEnabled;
 import com.luckycolor.admin.infrastructure.tenant.annotation.TenantIgnore;
+import com.luckycolor.admin.infrastructure.tenant.service.TenantExternalIdService;
 import com.luckycolor.admin.modules.iam.auth.model.AuthUser;
 import com.luckycolor.admin.modules.iam.auth.service.AuthUserService;
 import com.luckycolor.admin.modules.system.role.dataobject.SystemRoleDO;
@@ -28,28 +29,38 @@ public class PersistenceAuthUserServiceImpl implements AuthUserService {
     private final SystemUserMapper systemUserMapper;
     private final SystemRoleMapper systemRoleMapper;
     private final LocalAuthUserServiceImpl localAuthUserService;
+    private final TenantExternalIdService tenantExternalIdService;
 
     public PersistenceAuthUserServiceImpl(
         SystemUserMapper systemUserMapper,
         SystemRoleMapper systemRoleMapper,
-        LocalAuthUserServiceImpl localAuthUserService
+        LocalAuthUserServiceImpl localAuthUserService,
+        TenantExternalIdService tenantExternalIdService
     ) {
         this.systemUserMapper = systemUserMapper;
         this.systemRoleMapper = systemRoleMapper;
         this.localAuthUserService = localAuthUserService;
+        this.tenantExternalIdService = tenantExternalIdService;
     }
 
     @Override
     public AuthUser findByUsername(String username) {
+        return findByUsername(username, null);
+    }
+
+    @Override
+    public AuthUser findByUsername(String username, String tenantExternalId) {
         if (!StringUtils.hasText(username)) {
             return null;
         }
         LambdaQueryWrapper<SystemUserDO> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(SystemUserDO::getUsername, username.trim());
+        tenantExternalIdService.resolveTenantId(tenantExternalId)
+            .ifPresent(tenantId -> queryWrapper.eq(SystemUserDO::getTenantId, tenantId));
         queryWrapper.last("LIMIT 1");
         SystemUserDO user = systemUserMapper.selectOne(queryWrapper);
         if (user == null) {
-            return localAuthUserService.findByUsername(username);
+            return localAuthUserService.findByUsername(username, tenantExternalId);
         }
         return toAuthUser(user);
     }

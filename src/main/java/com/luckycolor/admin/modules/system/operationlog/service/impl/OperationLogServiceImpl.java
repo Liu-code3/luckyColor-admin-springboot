@@ -9,12 +9,12 @@ import com.luckycolor.admin.modules.system.operationlog.service.OperationLogReco
 import com.luckycolor.admin.modules.system.operationlog.service.OperationLogService;
 import com.luckycolor.admin.modules.system.operationlog.web.request.OperationLogPageQuery;
 import com.luckycolor.admin.modules.system.operationlog.web.response.OperationLogPageResponse;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import com.luckycolor.admin.common.config.ConditionalOnPersistenceEnabled;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 @Service
-@ConditionalOnBean(OperationLogMapper.class)
+@ConditionalOnPersistenceEnabled
 public class OperationLogServiceImpl implements OperationLogService {
 
     private final OperationLogMapper operationLogMapper;

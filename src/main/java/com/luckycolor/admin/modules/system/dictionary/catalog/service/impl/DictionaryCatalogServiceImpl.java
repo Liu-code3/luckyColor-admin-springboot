@@ -10,12 +10,12 @@ import com.luckycolor.admin.modules.system.dictionary.type.dataobject.Dictionary
 import com.luckycolor.admin.modules.system.dictionary.type.mapper.DictionaryTypeMapper;
 import java.util.Comparator;
 import java.util.List;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import com.luckycolor.admin.common.config.ConditionalOnPersistenceEnabled;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 @Service
-@ConditionalOnBean(DictionaryItemMapper.class)
+@ConditionalOnPersistenceEnabled
 public class DictionaryCatalogServiceImpl implements DictionaryCatalogService {
 
     private final DictionaryTypeMapper dictionaryTypeMapper;

@@ -2,6 +2,7 @@ package com.luckycolor.admin.infrastructure.security.web;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.luckycolor.admin.LuckycolorAdminSpringbootApplication;
@@ -53,18 +54,16 @@ class JwtAuthenticationFilterTest {
 
         mockMvc.perform(get("/internal/auth-context").header("Authorization", "Bearer " + token))
             .andExpect(status().isUnauthorized())
-            .andExpect(content().json("""
-                {"code":40100,"message":"Unauthorized"}
-                """, false));
+            .andExpect(jsonPath("$.code").value(1011008))
+            .andExpect(jsonPath("$.message").value("access token invalid, please sign in again"));
     }
 
     @Test
     void shouldRejectInvalidToken() throws Exception {
         mockMvc.perform(get("/internal/auth-context").header("Authorization", "Bearer invalid-token"))
             .andExpect(status().isUnauthorized())
-            .andExpect(content().json("""
-                {"code":40100,"message":"Unauthorized"}
-                """, false));
+            .andExpect(jsonPath("$.code").value(1011008))
+            .andExpect(jsonPath("$.message").value("access token invalid, please sign in again"));
     }
 
     @TestConfiguration

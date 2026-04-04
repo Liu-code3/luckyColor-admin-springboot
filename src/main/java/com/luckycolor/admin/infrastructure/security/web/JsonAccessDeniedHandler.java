@@ -8,6 +8,8 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -18,6 +20,8 @@ import org.springframework.util.StringUtils;
 
 @Component
 public class JsonAccessDeniedHandler implements AccessDeniedHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(JsonAccessDeniedHandler.class);
 
     private final ObjectMapper objectMapper;
     private final SecurityAuditLogService securityAuditLogService;
@@ -37,16 +41,20 @@ public class JsonAccessDeniedHandler implements AccessDeniedHandler {
         AccessDeniedException accessDeniedException
     ) throws IOException, ServletException {
         if (securityAuditLogService != null) {
-            securityAuditLogService.recordAccessDenied(
-                request,
-                SecurityContextHolder.getContext().getAuthentication(),
-                resolveReason(accessDeniedException)
-            );
+            try {
+                securityAuditLogService.recordAccessDenied(
+                    request,
+                    SecurityContextHolder.getContext().getAuthentication(),
+                    resolveReason(accessDeniedException)
+                );
+            } catch (RuntimeException exception) {
+                log.warn("failed to persist access denied audit uri={}", request.getRequestURI(), exception);
+            }
         }
         response.setStatus(HttpServletResponse.SC_FORBIDDEN);
         response.setCharacterEncoding("UTF-8");
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        objectMapper.writeValue(response.getWriter(), ApiResponse.failure(ApiErrorCode.FORBIDDEN, "Forbidden"));
+        objectMapper.writeValue(response.getWriter(), ApiResponse.failure(ApiErrorCode.PERMISSION_DENIED, "permission denied"));
     }
 
     private String resolveReason(AccessDeniedException accessDeniedException) {

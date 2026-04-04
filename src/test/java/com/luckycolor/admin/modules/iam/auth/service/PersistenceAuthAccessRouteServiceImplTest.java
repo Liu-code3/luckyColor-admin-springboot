@@ -7,6 +7,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.luckycolor.admin.infrastructure.tenant.service.TenantExternalIdService;
 import com.luckycolor.admin.modules.iam.auth.config.AuthAccessProperties;
 import com.luckycolor.admin.modules.iam.auth.model.AuthUser;
 import com.luckycolor.admin.modules.iam.auth.service.impl.AuthAccessRouteServiceImpl;
@@ -36,7 +37,8 @@ class PersistenceAuthAccessRouteServiceImplTest {
             systemRoleMapper,
             menuMapper,
             fallback,
-            objectMapper
+            objectMapper,
+            new TenantExternalIdService(null)
         );
 
         SystemRoleDO role = role(1L, 1L, "ROLE_SUPER_ADMIN", "Super Admin");
@@ -73,16 +75,18 @@ class PersistenceAuthAccessRouteServiceImplTest {
         AuthAccessSnapshotResponse snapshot = service.getAccessSnapshot(user);
 
         assertThat(routes).hasSize(1);
-        assertThat(routes.get(0).path()).isEqualTo("/system");
-        assertThat(routes.get(0).redirect()).isEqualTo("/system/users");
+        assertThat(routes.get(0).path()).isEqualTo("/systemManagement");
+        assertThat(routes.get(0).redirect()).isEqualTo("/systemManagement/system/users");
         assertThat(routes.get(0).meta()).containsEntry("menuKey", "main_system");
         assertThat(routes.get(0).children()).hasSize(1);
-        assertThat(routes.get(0).children().get(0).path()).isEqualTo("/system/users");
+        assertThat(routes.get(0).children().get(0).path()).isEqualTo("/systemManagement/system/users");
+        assertThat(routes.get(0).children().get(0).component()).isEqualTo("sys/user");
         assertThat(routes.get(0).children().get(0).meta()).containsEntry("permissionCode", "system:user:query");
         assertThat(routes.get(0).children().get(0).meta()).containsEntry("keepAlive", true);
 
+        assertThat(snapshot.user().tenantId()).isEqualTo("tenant_001");
         assertThat(snapshot.user().roleCodes()).containsExactly("ROLE_SUPER_ADMIN");
-        assertThat(snapshot.user().menuCodeList()).containsExactly("main_system", "system:user:query");
+        assertThat(snapshot.user().menuCodeList()).containsExactly("main_system", "main_system_users");
         assertThat(snapshot.user().buttonCodeList()).containsExactly("system:user:create", "system:user:reset-password");
         assertThat(snapshot.roles()).extracting(AuthAccessSnapshotResponse.AuthAccessRoleResponse::name)
             .containsExactly("Super Admin");
@@ -102,7 +106,8 @@ class PersistenceAuthAccessRouteServiceImplTest {
             systemRoleMapper,
             menuMapper,
             fallback,
-            objectMapper
+            objectMapper,
+            new TenantExternalIdService(null)
         );
 
         when(systemRoleMapper.selectList(any())).thenReturn(List.of());
@@ -139,7 +144,8 @@ class PersistenceAuthAccessRouteServiceImplTest {
             systemRoleMapper,
             menuMapper,
             fallback,
-            objectMapper
+            objectMapper,
+            new TenantExternalIdService(null)
         );
 
         AuthUser user = new AuthUser(
@@ -173,7 +179,8 @@ class PersistenceAuthAccessRouteServiceImplTest {
             systemRoleMapper,
             menuMapper,
             fallback,
-            objectMapper
+            objectMapper,
+            new TenantExternalIdService(null)
         );
 
         when(systemRoleMapper.selectList(any())).thenReturn(List.of());

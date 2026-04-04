@@ -409,12 +409,12 @@ class FrontendSystemCompatibilityControllerTest {
         mockMvc.perform(get("/menus/tree"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data[0].path").value("/dashboard"))
-            .andExpect(jsonPath("$.data[0].component").value("dashboard/index"))
+            .andExpect(jsonPath("$.data[0].component").value("index/index"))
             .andExpect(jsonPath("$.data[0].permissionCode").value("dashboard:query"))
             .andExpect(jsonPath("$.data[1].path").value("/system"))
-            .andExpect(jsonPath("$.data[1].component").value("Layout"))
+            .andExpect(jsonPath("$.data[1].component").value("sys/index"))
             .andExpect(jsonPath("$.data[1].children[0].path").value("/system/users"))
-            .andExpect(jsonPath("$.data[1].children[0].component").value("system/user/index"))
+            .andExpect(jsonPath("$.data[1].children[0].component").value("sys/user"))
             .andExpect(jsonPath("$.data[1].children[0].permissionCode").value("system:user:query"));
     }
 

@@ -6,11 +6,11 @@ import com.luckycolor.admin.modules.platform.watermark.mapper.WatermarkConfigMap
 import com.luckycolor.admin.modules.platform.watermark.service.WatermarkConfigService;
 import com.luckycolor.admin.modules.platform.watermark.web.request.WatermarkConfigSaveRequest;
 import com.luckycolor.admin.modules.platform.watermark.web.response.WatermarkConfigResponse;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import com.luckycolor.admin.common.config.ConditionalOnPersistenceEnabled;
 import org.springframework.stereotype.Service;
 
 @Service
-@ConditionalOnBean(WatermarkConfigMapper.class)
+@ConditionalOnPersistenceEnabled
 public class WatermarkConfigServiceImpl implements WatermarkConfigService {
 
     private static final int DEFAULT_ENABLED = 0;

@@ -1,5 +1,6 @@
 package com.luckycolor.admin.modules.system.config.dataobject;
 
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.luckycolor.admin.infrastructure.persistence.dataobject.TenantBaseDO;
 import lombok.Getter;
@@ -16,6 +17,7 @@ public class SystemConfigDO extends TenantBaseDO {
 
     private String configValue;
 
+    @TableField("sensitive_flag")
     private Integer sensitive;
 
     private Integer status;

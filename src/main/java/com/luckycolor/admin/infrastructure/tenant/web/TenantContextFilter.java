@@ -5,6 +5,7 @@ import com.luckycolor.admin.infrastructure.security.jwt.JwtTokenService;
 import com.luckycolor.admin.infrastructure.security.web.SecurityRequestAttributes;
 import com.luckycolor.admin.infrastructure.tenant.config.TenancyProperties;
 import com.luckycolor.admin.infrastructure.tenant.core.TenantContextHolder;
+import com.luckycolor.admin.infrastructure.tenant.service.TenantExternalIdService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -25,6 +26,7 @@ public class TenantContextFilter extends OncePerRequestFilter {
 
     private final TenancyProperties tenancyProperties;
     private final JwtTokenService jwtTokenService;
+    private final TenantExternalIdService tenantExternalIdService;
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
@@ -70,12 +72,11 @@ public class TenantContextFilter extends OncePerRequestFilter {
         if (!StringUtils.hasText(tenantId)) {
             return Optional.empty();
         }
-
-        try {
-            return Optional.of(Long.parseLong(tenantId.trim()));
-        } catch (NumberFormatException exception) {
-            throw new IllegalArgumentException("Invalid tenant id: " + tenantId, exception);
+        Optional<Long> resolvedTenantId = tenantExternalIdService.resolveTenantId(tenantId);
+        if (resolvedTenantId.isPresent()) {
+            return resolvedTenantId;
         }
+        throw new IllegalArgumentException("Invalid tenant id: " + tenantId);
     }
 
     private Optional<String> resolveTenantFromToken(HttpServletRequest request) {

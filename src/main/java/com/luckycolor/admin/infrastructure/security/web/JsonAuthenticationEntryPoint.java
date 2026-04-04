@@ -35,13 +35,18 @@ public class JsonAuthenticationEntryPoint implements AuthenticationEntryPoint {
         HttpServletResponse response,
         AuthenticationException authException
     ) throws IOException, ServletException {
+        String reason = resolveReason(request, authException);
         if (securityAuditLogService != null) {
-            securityAuditLogService.recordUnauthorized(request, resolveReason(request, authException));
+            try {
+                securityAuditLogService.recordUnauthorized(request, reason);
+            } catch (RuntimeException ignored) {
+                // Authentication failure response must not be blocked by optional audit persistence.
+            }
         }
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.setCharacterEncoding("UTF-8");
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        objectMapper.writeValue(response.getWriter(), ApiResponse.failure(ApiErrorCode.UNAUTHORIZED, "Unauthorized"));
+        objectMapper.writeValue(response.getWriter(), ApiResponse.failure(resolveErrorCode(reason), resolveMessage(reason)));
     }
 
     private String resolveReason(HttpServletRequest request, AuthenticationException authException) {
@@ -53,5 +58,21 @@ public class JsonAuthenticationEntryPoint implements AuthenticationEntryPoint {
             return authException.getMessage();
         }
         return "UNAUTHORIZED";
+    }
+
+    private int resolveErrorCode(String reason) {
+        return switch (reason) {
+            case "TOKEN_EXPIRED" -> ApiErrorCode.AUTH_TOKEN_EXPIRED;
+            case "TOKEN_INVALID", "TOKEN_REVOKED" -> ApiErrorCode.AUTH_TOKEN_INVALID;
+            default -> ApiErrorCode.UNAUTHORIZED;
+        };
+    }
+
+    private String resolveMessage(String reason) {
+        return switch (reason) {
+            case "TOKEN_EXPIRED" -> "access token expired, please sign in again";
+            case "TOKEN_INVALID", "TOKEN_REVOKED" -> "access token invalid, please sign in again";
+            default -> "Unauthorized";
+        };
     }
 }

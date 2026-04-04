@@ -15,14 +15,14 @@ import com.luckycolor.admin.modules.iam.audit.web.request.SecurityAuditLogPageQu
 import com.luckycolor.admin.modules.iam.audit.web.response.SecurityAuditLogPageResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Optional;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import com.luckycolor.admin.common.config.ConditionalOnPersistenceEnabled;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 @Service
 @TenantIgnore
-@ConditionalOnBean(SecurityAuditLogMapper.class)
+@ConditionalOnPersistenceEnabled
 public class SecurityAuditLogServiceImpl implements SecurityAuditLogService {
 
     private static final int SUCCESS = 1;

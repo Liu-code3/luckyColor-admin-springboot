@@ -6,5 +6,9 @@ public interface AuthUserService {
 
     AuthUser findByUsername(String username);
 
+    default AuthUser findByUsername(String username, String tenantExternalId) {
+        return findByUsername(username);
+    }
+
     AuthUser getByUserId(Long userId);
 }
