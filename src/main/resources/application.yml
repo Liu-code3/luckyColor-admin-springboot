@@ -7,7 +7,7 @@ spring:
     time-zone: Asia/Shanghai
     date-format: yyyy-MM-dd HH:mm:ss
   datasource:
-    url: jdbc:mysql://${DB_HOST:127.0.0.1}:${DB_PORT:3306}/${DB_NAME:luckycolor_admin}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
+    url: jdbc:mysql://${DB_HOST:127.0.0.1}:${DB_PORT:3306}/${DB_NAME:luckycolor_admin_sb}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
     username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD:123456}
   data:
@@ -75,7 +75,7 @@ app:
           username: admin
           password: ${ADMIN_PASSWORD:$2b$10$GpBeIWgfwZt8WkEG8.nCc.CB9GPGYPLgrIx5OpcCS5F5lUZrG89vC}
           tenant-id: 1
-          nickname: System Admin
+          nickname: 系统管理员
           status: 0
           data-scope: ALL
           roles:
@@ -139,7 +139,7 @@ app:
           username: tenant-operator
           password: ${TENANT_OPERATOR_PASSWORD:$2b$10$ByL3bDD6.G4YumMjJ6AkgeosOYzlf/grj3nN0OMgjOLio30J0ksTG}
           tenant-id: 1
-          nickname: Tenant Operator
+          nickname: 租户运营
           status: 0
           data-scope: CUSTOM
           scope-tenant-ids:
