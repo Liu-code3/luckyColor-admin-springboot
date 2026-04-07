@@ -53,16 +53,26 @@ public class TenantContextFilter extends OncePerRequestFilter {
 
             TenantContextHolder.setTenantId(tenantId.get());
             filterChain.doFilter(request, response);
+        } catch (IllegalArgumentException exception) {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, exception.getMessage());
         } finally {
             TenantContextHolder.clear();
         }
     }
 
     private Optional<Long> resolveTenantId(HttpServletRequest request) {
-        String tenantId = request.getHeader(tenancyProperties.getHeader());
-        if (!StringUtils.hasText(tenantId)) {
-            tenantId = resolveTenantFromToken(request).orElse(null);
+        String tenantIdFromHeader = normalizeTenantId(request.getHeader(tenancyProperties.getHeader()));
+        Optional<String> tenantIdFromToken = resolveTenantFromToken(request).map(this::normalizeTenantId);
+
+        if (tenantIdFromToken.isPresent()) {
+            String authenticatedTenantId = tenantIdFromToken.get();
+            if (StringUtils.hasText(tenantIdFromHeader) && !authenticatedTenantId.equals(tenantIdFromHeader)) {
+                throw new IllegalArgumentException("Tenant id header does not match authenticated tenant");
+            }
+            return resolveExternalTenantId(authenticatedTenantId);
         }
+
+        String tenantId = tenantIdFromHeader;
         if (!StringUtils.hasText(tenantId)) {
             tenantId = resolveTenantFromDomain(request.getServerName()).orElse(null);
         }
@@ -72,11 +82,19 @@ public class TenantContextFilter extends OncePerRequestFilter {
         if (!StringUtils.hasText(tenantId)) {
             return Optional.empty();
         }
+        return resolveExternalTenantId(tenantId);
+    }
+
+    private Optional<Long> resolveExternalTenantId(String tenantId) {
         Optional<Long> resolvedTenantId = tenantExternalIdService.resolveTenantId(tenantId);
         if (resolvedTenantId.isPresent()) {
             return resolvedTenantId;
         }
         throw new IllegalArgumentException("Invalid tenant id: " + tenantId);
+    }
+
+    private String normalizeTenantId(String tenantId) {
+        return StringUtils.hasText(tenantId) ? tenantId.trim() : null;
     }
 
     private Optional<String> resolveTenantFromToken(HttpServletRequest request) {
