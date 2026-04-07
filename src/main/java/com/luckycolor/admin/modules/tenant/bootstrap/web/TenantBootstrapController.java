@@ -1,9 +1,11 @@
 package com.luckycolor.admin.modules.tenant.bootstrap.web;
 
+import static com.luckycolor.admin.common.config.OpenApiExamplePayloads.FORBIDDEN;
 import static com.luckycolor.admin.common.config.OpenApiExamplePayloads.UNAUTHORIZED;
 
 import com.luckycolor.admin.common.api.ApiResponse;
 import com.luckycolor.admin.common.page.PageResult;
+import com.luckycolor.admin.infrastructure.security.authorization.RequirePermission;
 import com.luckycolor.admin.modules.tenant.bootstrap.mapper.TenantBootstrapRecordMapper;
 import com.luckycolor.admin.modules.tenant.bootstrap.service.TenantBootstrapService;
 import com.luckycolor.admin.modules.tenant.bootstrap.web.request.TenantBootstrapExecuteRequest;
@@ -41,12 +43,17 @@ public class TenantBootstrapController {
     }
 
     @GetMapping("/admin/tenant-bootstrap/templates")
+    @RequirePermission("tenant:bootstrap:query")
     @Operation(summary = "List tenant bootstrap templates")
     @ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Tenant bootstrap templates loaded"),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(
             responseCode = "401", description = "Authentication required",
             content = @Content(mediaType = "application/json", examples = @ExampleObject(value = UNAUTHORIZED))
+        ),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "403", description = "Permission denied",
+            content = @Content(mediaType = "application/json", examples = @ExampleObject(value = FORBIDDEN))
         )
     })
     public ApiResponse<List<TenantBootstrapTemplateResponse>> templates() {
@@ -54,12 +61,17 @@ public class TenantBootstrapController {
     }
 
     @GetMapping("/admin/tenant-bootstrap/records/page")
+    @RequirePermission("tenant:bootstrap:query")
     @Operation(summary = "Page tenant bootstrap records")
     @ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Tenant bootstrap records loaded"),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(
             responseCode = "401", description = "Authentication required",
             content = @Content(mediaType = "application/json", examples = @ExampleObject(value = UNAUTHORIZED))
+        ),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "403", description = "Permission denied",
+            content = @Content(mediaType = "application/json", examples = @ExampleObject(value = FORBIDDEN))
         )
     })
     public ApiResponse<PageResult<TenantBootstrapRecordResponse>> page(@ParameterObject TenantBootstrapRecordPageQuery query) {
@@ -67,6 +79,7 @@ public class TenantBootstrapController {
     }
 
     @PostMapping("/admin/tenants/{tenantId}/bootstrap")
+    @RequirePermission("tenant:bootstrap:execute")
     @Operation(summary = "Bootstrap a tenant")
     @ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Tenant bootstrapped successfully"),
@@ -77,6 +90,10 @@ public class TenantBootstrapController {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(
             responseCode = "401", description = "Authentication required",
             content = @Content(mediaType = "application/json", examples = @ExampleObject(value = UNAUTHORIZED))
+        ),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "403", description = "Permission denied",
+            content = @Content(mediaType = "application/json", examples = @ExampleObject(value = FORBIDDEN))
         )
     })
     public ApiResponse<TenantBootstrapRecordResponse> bootstrap(
