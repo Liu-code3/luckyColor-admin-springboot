@@ -6,8 +6,9 @@ import static com.luckycolor.admin.common.config.OpenApiExamplePayloads.UNAUTHOR
 import com.luckycolor.admin.common.api.ApiResponse;
 import com.luckycolor.admin.common.page.PageResult;
 import com.luckycolor.admin.infrastructure.security.authorization.RequirePermission;
-import com.luckycolor.admin.modules.system.notice.mapper.NoticeMapper;
 import com.luckycolor.admin.modules.system.notice.service.NoticeService;
+import com.luckycolor.admin.modules.system.notice.service.request.NoticePublishCommand;
+import com.luckycolor.admin.modules.system.notice.service.request.NoticeWriteRequest;
 import com.luckycolor.admin.modules.system.notice.web.request.NoticePageQuery;
 import com.luckycolor.admin.modules.system.notice.web.request.NoticePublishRequest;
 import com.luckycolor.admin.modules.system.notice.web.request.NoticeSaveRequest;
@@ -76,14 +77,14 @@ public class NoticeController {
         )
     })
     public ApiResponse<Long> create(@Valid @RequestBody NoticeSaveRequest request) {
-        return ApiResponse.success(noticeService.createNotice(request));
+        return ApiResponse.success(noticeService.createNotice(toWriteRequest(request)));
     }
 
     @PutMapping("/{id}")
     @RequirePermission("system:notice:update")
     @Operation(summary = "Update notice")
     public ApiResponse<Boolean> update(@PathVariable Long id, @Valid @RequestBody NoticeSaveRequest request) {
-        noticeService.updateNotice(id, request);
+        noticeService.updateNotice(id, toWriteRequest(request));
         return ApiResponse.success(true);
     }
 
@@ -102,7 +103,23 @@ public class NoticeController {
         )
     })
     public ApiResponse<Boolean> publish(@PathVariable Long id, @Valid @RequestBody NoticePublishRequest request) {
-        noticeService.publishNotice(id, request);
+        noticeService.publishNotice(id, toPublishCommand(request));
         return ApiResponse.success(true);
+    }
+
+    private NoticeWriteRequest toWriteRequest(NoticeSaveRequest request) {
+        NoticeWriteRequest target = new NoticeWriteRequest();
+        target.setNoticeTitle(request.getNoticeTitle());
+        target.setNoticeType(request.getNoticeType());
+        target.setNoticeContent(request.getNoticeContent());
+        target.setSort(request.getSort());
+        target.setRemark(request.getRemark());
+        return target;
+    }
+
+    private NoticePublishCommand toPublishCommand(NoticePublishRequest request) {
+        NoticePublishCommand target = new NoticePublishCommand();
+        target.setPublishStatus(request.getPublishStatus());
+        return target;
     }
 }

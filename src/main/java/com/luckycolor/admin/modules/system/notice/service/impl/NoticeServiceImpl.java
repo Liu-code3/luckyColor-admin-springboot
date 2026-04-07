@@ -6,9 +6,9 @@ import com.luckycolor.admin.infrastructure.security.datascope.DataScopeCondition
 import com.luckycolor.admin.modules.system.notice.dataobject.NoticeDO;
 import com.luckycolor.admin.modules.system.notice.mapper.NoticeMapper;
 import com.luckycolor.admin.modules.system.notice.service.NoticeService;
+import com.luckycolor.admin.modules.system.notice.service.request.NoticePublishCommand;
+import com.luckycolor.admin.modules.system.notice.service.request.NoticeWriteRequest;
 import com.luckycolor.admin.modules.system.notice.web.request.NoticePageQuery;
-import com.luckycolor.admin.modules.system.notice.web.request.NoticePublishRequest;
-import com.luckycolor.admin.modules.system.notice.web.request.NoticeSaveRequest;
 import com.luckycolor.admin.modules.system.notice.web.response.NoticeDetailResponse;
 import com.luckycolor.admin.modules.system.notice.web.response.NoticePageResponse;
 import java.time.LocalDateTime;
@@ -46,26 +46,36 @@ public class NoticeServiceImpl implements NoticeService {
     }
 
     @Override
-    public Long createNotice(NoticeSaveRequest request) {
+    public Long createNotice(NoticeWriteRequest request) {
         NoticeDO notice = new NoticeDO();
         fillNotice(notice, request);
-        notice.setPublishStatus(DRAFT);
+        Integer publishStatus = defaultInteger(request.getPublishStatus(), DRAFT);
+        notice.setPublishStatus(publishStatus);
+        notice.setPublishTime(resolvePublishTime(publishStatus, request.getPublishTime(), null));
         noticeMapper.insert(notice);
         return notice.getId();
     }
 
     @Override
-    public void updateNotice(Long id, NoticeSaveRequest request) {
+    public void updateNotice(Long id, NoticeWriteRequest request) {
         NoticeDO notice = getRequiredNotice(id);
         fillNotice(notice, request);
+        Integer publishStatus = request.getPublishStatus() != null
+            ? request.getPublishStatus()
+            : defaultInteger(notice.getPublishStatus(), DRAFT);
+        notice.setPublishStatus(publishStatus);
+        notice.setPublishTime(resolvePublishTime(publishStatus, request.getPublishTime(), notice.getPublishTime()));
         noticeMapper.updateById(notice);
     }
 
     @Override
-    public void publishNotice(Long id, NoticePublishRequest request) {
+    public void publishNotice(Long id, NoticePublishCommand request) {
         NoticeDO notice = getRequiredNotice(id);
         notice.setPublishStatus(request.getPublishStatus());
-        notice.setPublishTime(request.getPublishStatus() == PUBLISHED ? LocalDateTime.now() : null);
+        notice.setPublishTime(resolvePublishTime(request.getPublishStatus(), request.getPublishTime(), notice.getPublishTime()));
+        if (request.getRemark() != null) {
+            notice.setRemark(request.getRemark());
+        }
         noticeMapper.updateById(notice);
     }
 
@@ -89,12 +99,29 @@ public class NoticeServiceImpl implements NoticeService {
         return notice;
     }
 
-    private void fillNotice(NoticeDO notice, NoticeSaveRequest request) {
+    private void fillNotice(NoticeDO notice, NoticeWriteRequest request) {
         notice.setNoticeTitle(request.getNoticeTitle());
         notice.setNoticeType(request.getNoticeType());
         notice.setNoticeContent(request.getNoticeContent());
         notice.setSort(request.getSort());
         notice.setRemark(request.getRemark());
+    }
+
+    private LocalDateTime resolvePublishTime(Integer publishStatus, LocalDateTime requestedTime, LocalDateTime currentTime) {
+        if (defaultInteger(publishStatus, DRAFT) != PUBLISHED) {
+            return null;
+        }
+        if (requestedTime != null) {
+            return requestedTime;
+        }
+        if (currentTime != null) {
+            return currentTime;
+        }
+        return LocalDateTime.now();
+    }
+
+    private Integer defaultInteger(Integer value, Integer fallback) {
+        return value == null ? fallback : value;
     }
 
     private NoticePageResponse toPageResponse(NoticeDO notice) {

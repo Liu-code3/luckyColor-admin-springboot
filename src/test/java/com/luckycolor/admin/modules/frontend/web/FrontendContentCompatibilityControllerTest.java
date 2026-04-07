@@ -17,6 +17,8 @@ import com.luckycolor.admin.common.page.PageResult;
 import com.luckycolor.admin.infrastructure.security.datascope.DataScopeConditionBuilder;
 import com.luckycolor.admin.modules.system.config.dataobject.SystemConfigDO;
 import com.luckycolor.admin.modules.system.config.mapper.SystemConfigMapper;
+import com.luckycolor.admin.modules.system.config.service.SystemConfigService;
+import com.luckycolor.admin.modules.system.config.web.request.SystemConfigSaveRequest;
 import com.luckycolor.admin.modules.system.dictionary.cache.service.DictionaryCatalogCacheService;
 import com.luckycolor.admin.modules.system.dictionary.item.dataobject.DictionaryItemDO;
 import com.luckycolor.admin.modules.system.dictionary.item.mapper.DictionaryItemMapper;
@@ -27,6 +29,9 @@ import com.luckycolor.admin.modules.system.dictionary.type.mapper.DictionaryType
 import com.luckycolor.admin.modules.system.dictionary.type.service.DictionaryTypeService;
 import com.luckycolor.admin.modules.system.notice.dataobject.NoticeDO;
 import com.luckycolor.admin.modules.system.notice.mapper.NoticeMapper;
+import com.luckycolor.admin.modules.system.notice.service.NoticeService;
+import com.luckycolor.admin.modules.system.notice.service.request.NoticePublishCommand;
+import com.luckycolor.admin.modules.system.notice.service.request.NoticeWriteRequest;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
@@ -40,12 +45,14 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 class FrontendContentCompatibilityControllerTest {
 
     private SystemConfigMapper systemConfigMapper;
+    private SystemConfigService systemConfigService;
     private DictionaryTypeService dictionaryTypeService;
     private DictionaryTypeMapper dictionaryTypeMapper;
     private DictionaryItemService dictionaryItemService;
     private DictionaryItemMapper dictionaryItemMapper;
     private DictionaryCatalogCacheService dictionaryCatalogCacheService;
     private NoticeMapper noticeMapper;
+    private NoticeService noticeService;
     private DataScopeConditionBuilder dataScopeConditionBuilder;
     private FrontendContentCompatibilityController controller;
 
@@ -56,21 +63,25 @@ class FrontendContentCompatibilityControllerTest {
         initializeTableInfo(DictionaryItemDO.class);
         initializeTableInfo(NoticeDO.class);
         systemConfigMapper = Mockito.mock(SystemConfigMapper.class);
+        systemConfigService = Mockito.mock(SystemConfigService.class);
         dictionaryTypeService = Mockito.mock(DictionaryTypeService.class);
         dictionaryTypeMapper = Mockito.mock(DictionaryTypeMapper.class);
         dictionaryItemService = Mockito.mock(DictionaryItemService.class);
         dictionaryItemMapper = Mockito.mock(DictionaryItemMapper.class);
         dictionaryCatalogCacheService = Mockito.mock(DictionaryCatalogCacheService.class);
         noticeMapper = Mockito.mock(NoticeMapper.class);
+        noticeService = Mockito.mock(NoticeService.class);
         dataScopeConditionBuilder = Mockito.mock(DataScopeConditionBuilder.class);
         controller = new FrontendContentCompatibilityController(
             systemConfigMapper,
+            systemConfigService,
             dictionaryTypeService,
             dictionaryTypeMapper,
             dictionaryItemService,
             dictionaryItemMapper,
             dictionaryCatalogCacheService,
             noticeMapper,
+            noticeService,
             dataScopeConditionBuilder,
             new ObjectMapper()
         );
@@ -214,5 +225,117 @@ class FrontendContentCompatibilityControllerTest {
             .andExpect(jsonPath("$.data.records[0].status").value(true))
             .andExpect(jsonPath("$.data.records[0].isPinned").value(true))
             .andExpect(jsonPath("$.data.records[0].publisher").value("product-team"));
+    }
+
+    @Test
+    void shouldTranslateConfigCreateToSystemConfigService() {
+        SystemConfigDO created = new SystemConfigDO();
+        created.setId(11L);
+        created.setTenantId(1L);
+        created.setConfigKey("site.title");
+        created.setConfigName("Site Title");
+        created.setConfigValue("LuckyColor");
+        created.setStatus(0);
+
+        when(systemConfigService.createConfig(any())).thenReturn(11L);
+        when(systemConfigMapper.selectOne(any())).thenReturn(created);
+
+        FrontendContentCompatibilityController.FrontendConfigUpsertRequest request =
+            new FrontendContentCompatibilityController.FrontendConfigUpsertRequest();
+        request.setConfigKey(" site.title ");
+        request.setConfigName(" Site Title ");
+        request.setConfigValue(" LuckyColor ");
+        request.setStatus(true);
+        request.setRemark("  portal  ");
+
+        FrontendContentCompatibilityController.FrontendConfigRecord response = controller.createConfig(request).data();
+
+        ArgumentCaptor<SystemConfigSaveRequest> captor = ArgumentCaptor.forClass(SystemConfigSaveRequest.class);
+        verify(systemConfigService).createConfig(captor.capture());
+        assertThat(captor.getValue().getConfigKey()).isEqualTo("site.title");
+        assertThat(captor.getValue().getConfigName()).isEqualTo("Site Title");
+        assertThat(captor.getValue().getConfigValue()).isEqualTo("LuckyColor");
+        assertThat(captor.getValue().getSensitive()).isEqualTo(0);
+        assertThat(captor.getValue().getStatus()).isEqualTo(0);
+        assertThat(captor.getValue().getSort()).isEqualTo(10);
+        assertThat(captor.getValue().getRemark()).isEqualTo("portal");
+        assertThat(response.id()).isEqualTo("11");
+    }
+
+    @Test
+    void shouldTranslateNoticePublishToNoticeService() {
+        NoticeDO current = new NoticeDO();
+        current.setId(5L);
+        current.setNoticeTitle("Release Reminder");
+        current.setNoticeContent("Check permissions before release.");
+        current.setNoticeType("release");
+        current.setPublishStatus(0);
+        current.setRemark("LC_META:{\"publisher\":\"ops\",\"pinned\":true,\"legacyRemark\":null}");
+
+        NoticeDO published = new NoticeDO();
+        published.setId(5L);
+        published.setTenantId(1L);
+        published.setNoticeTitle("Release Reminder");
+        published.setNoticeContent("Check permissions before release.");
+        published.setNoticeType("release");
+        published.setPublishStatus(1);
+        published.setRemark("LC_META:{\"publisher\":\"product-team\",\"pinned\":true,\"legacyRemark\":null}");
+
+        when(noticeMapper.selectById(5L)).thenReturn(current, published);
+
+        FrontendContentCompatibilityController.FrontendNoticePublishRequest request =
+            new FrontendContentCompatibilityController.FrontendNoticePublishRequest();
+        request.setPublisher(" product-team ");
+        request.setPublishedAt("2026-04-03T11:00:00Z");
+
+        FrontendContentCompatibilityController.FrontendNoticeRecord response = controller.publishNotice(5L, request).data();
+
+        ArgumentCaptor<NoticePublishCommand> captor = ArgumentCaptor.forClass(NoticePublishCommand.class);
+        verify(noticeService).publishNotice(eq(5L), captor.capture());
+        assertThat(captor.getValue().getPublishStatus()).isEqualTo(1);
+        assertThat(captor.getValue().getPublishTime()).isEqualTo(LocalDateTime.of(2026, 4, 3, 11, 0));
+        assertThat(captor.getValue().getRemark()).contains("product-team");
+        assertThat(captor.getValue().getRemark()).contains("\"pinned\":true");
+        assertThat(response.publisher()).isEqualTo("product-team");
+        assertThat(response.isPinned()).isTrue();
+    }
+
+    @Test
+    void shouldTranslateNoticeUpdateToNoticeService() {
+        NoticeDO current = new NoticeDO();
+        current.setId(5L);
+        current.setNoticeTitle("Release Reminder");
+        current.setNoticeContent("Check permissions before release.");
+        current.setNoticeType("release");
+        current.setPublishStatus(1);
+        current.setPublishTime(LocalDateTime.of(2026, 4, 3, 11, 0));
+        current.setSort(0);
+        current.setRemark("LC_META:{\"publisher\":\"product-team\",\"pinned\":false,\"legacyRemark\":null}");
+
+        NoticeDO updated = new NoticeDO();
+        updated.setId(5L);
+        updated.setTenantId(1L);
+        updated.setNoticeTitle("Release Reminder");
+        updated.setNoticeContent("Check permissions before release twice.");
+        updated.setNoticeType("release");
+        updated.setPublishStatus(1);
+        updated.setPublishTime(LocalDateTime.of(2026, 4, 3, 11, 0));
+        updated.setRemark("LC_META:{\"publisher\":\"product-team\",\"pinned\":false,\"legacyRemark\":null}");
+
+        when(noticeMapper.selectById(5L)).thenReturn(current, updated);
+
+        FrontendContentCompatibilityController.FrontendNoticePatchRequest request =
+            new FrontendContentCompatibilityController.FrontendNoticePatchRequest();
+        request.setContent(" Check permissions before release twice. ");
+
+        FrontendContentCompatibilityController.FrontendNoticeRecord response = controller.updateNotice(5L, request).data();
+
+        ArgumentCaptor<NoticeWriteRequest> captor = ArgumentCaptor.forClass(NoticeWriteRequest.class);
+        verify(noticeService).updateNotice(eq(5L), captor.capture());
+        assertThat(captor.getValue().getNoticeTitle()).isEqualTo("Release Reminder");
+        assertThat(captor.getValue().getNoticeContent()).isEqualTo("Check permissions before release twice.");
+        assertThat(captor.getValue().getPublishStatus()).isEqualTo(1);
+        assertThat(captor.getValue().getPublishTime()).isEqualTo(LocalDateTime.of(2026, 4, 3, 11, 0));
+        assertThat(response.content()).isEqualTo("Check permissions before release twice.");
     }
 }

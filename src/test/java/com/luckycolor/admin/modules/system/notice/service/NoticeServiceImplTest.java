@@ -12,9 +12,9 @@ import com.luckycolor.admin.infrastructure.security.datascope.DataScopeCondition
 import com.luckycolor.admin.modules.system.notice.dataobject.NoticeDO;
 import com.luckycolor.admin.modules.system.notice.mapper.NoticeMapper;
 import com.luckycolor.admin.modules.system.notice.service.impl.NoticeServiceImpl;
+import com.luckycolor.admin.modules.system.notice.service.request.NoticePublishCommand;
+import com.luckycolor.admin.modules.system.notice.service.request.NoticeWriteRequest;
 import com.luckycolor.admin.modules.system.notice.web.request.NoticePageQuery;
-import com.luckycolor.admin.modules.system.notice.web.request.NoticePublishRequest;
-import com.luckycolor.admin.modules.system.notice.web.request.NoticeSaveRequest;
 import com.luckycolor.admin.modules.system.notice.web.response.NoticeDetailResponse;
 import com.luckycolor.admin.modules.system.notice.web.response.NoticePageResponse;
 import java.time.LocalDateTime;
@@ -67,13 +67,15 @@ class NoticeServiceImplTest {
         notice.setPublishTime(null);
         when(mapper.selectById(1L)).thenReturn(notice);
         NoticeService service = new NoticeServiceImpl(mapper, noScopeBuilder());
-        NoticePublishRequest request = new NoticePublishRequest();
+        NoticePublishCommand request = new NoticePublishCommand();
         request.setPublishStatus(1);
+        request.setRemark("LC_META:{\"publisher\":\"product\"}");
 
         service.publishNotice(1L, request);
 
         assertThat(notice.getPublishStatus()).isEqualTo(1);
         assertThat(notice.getPublishTime()).isNotNull();
+        assertThat(notice.getRemark()).isEqualTo("LC_META:{\"publisher\":\"product\"}");
         verify(mapper).updateById(notice);
     }
 
@@ -102,8 +104,8 @@ class NoticeServiceImplTest {
         return notice;
     }
 
-    private NoticeSaveRequest saveRequest() {
-        NoticeSaveRequest request = new NoticeSaveRequest();
+    private NoticeWriteRequest saveRequest() {
+        NoticeWriteRequest request = new NoticeWriteRequest();
         request.setNoticeTitle("Platform Notice");
         request.setNoticeType("SYSTEM");
         request.setNoticeContent("system maintenance");

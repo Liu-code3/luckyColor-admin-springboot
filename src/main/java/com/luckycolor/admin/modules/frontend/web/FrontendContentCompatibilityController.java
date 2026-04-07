@@ -11,6 +11,8 @@ import com.luckycolor.admin.infrastructure.security.authorization.RequirePermiss
 import com.luckycolor.admin.infrastructure.security.datascope.DataScopeConditionBuilder;
 import com.luckycolor.admin.modules.system.config.dataobject.SystemConfigDO;
 import com.luckycolor.admin.modules.system.config.mapper.SystemConfigMapper;
+import com.luckycolor.admin.modules.system.config.service.SystemConfigService;
+import com.luckycolor.admin.modules.system.config.web.request.SystemConfigSaveRequest;
 import com.luckycolor.admin.modules.system.dictionary.cache.service.DictionaryCatalogCacheService;
 import com.luckycolor.admin.modules.system.dictionary.item.dataobject.DictionaryItemDO;
 import com.luckycolor.admin.modules.system.dictionary.item.mapper.DictionaryItemMapper;
@@ -22,6 +24,9 @@ import com.luckycolor.admin.modules.system.dictionary.type.service.DictionaryTyp
 import com.luckycolor.admin.modules.system.dictionary.type.web.request.DictionaryTypeSaveRequest;
 import com.luckycolor.admin.modules.system.notice.dataobject.NoticeDO;
 import com.luckycolor.admin.modules.system.notice.mapper.NoticeMapper;
+import com.luckycolor.admin.modules.system.notice.service.NoticeService;
+import com.luckycolor.admin.modules.system.notice.service.request.NoticePublishCommand;
+import com.luckycolor.admin.modules.system.notice.service.request.NoticeWriteRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -68,33 +73,39 @@ public class FrontendContentCompatibilityController {
     private static final String META_PREFIX = "LC_META:";
 
     private final SystemConfigMapper systemConfigMapper;
+    private final SystemConfigService systemConfigService;
     private final DictionaryTypeService dictionaryTypeService;
     private final DictionaryTypeMapper dictionaryTypeMapper;
     private final DictionaryItemService dictionaryItemService;
     private final DictionaryItemMapper dictionaryItemMapper;
     private final DictionaryCatalogCacheService dictionaryCatalogCacheService;
     private final NoticeMapper noticeMapper;
+    private final NoticeService noticeService;
     private final DataScopeConditionBuilder dataScopeConditionBuilder;
     private final ObjectMapper objectMapper;
 
     public FrontendContentCompatibilityController(
         SystemConfigMapper systemConfigMapper,
+        SystemConfigService systemConfigService,
         DictionaryTypeService dictionaryTypeService,
         DictionaryTypeMapper dictionaryTypeMapper,
         DictionaryItemService dictionaryItemService,
         DictionaryItemMapper dictionaryItemMapper,
         DictionaryCatalogCacheService dictionaryCatalogCacheService,
         NoticeMapper noticeMapper,
+        NoticeService noticeService,
         DataScopeConditionBuilder dataScopeConditionBuilder,
         ObjectMapper objectMapper
     ) {
         this.systemConfigMapper = systemConfigMapper;
+        this.systemConfigService = systemConfigService;
         this.dictionaryTypeService = dictionaryTypeService;
         this.dictionaryTypeMapper = dictionaryTypeMapper;
         this.dictionaryItemService = dictionaryItemService;
         this.dictionaryItemMapper = dictionaryItemMapper;
         this.dictionaryCatalogCacheService = dictionaryCatalogCacheService;
         this.noticeMapper = noticeMapper;
+        this.noticeService = noticeService;
         this.dataScopeConditionBuilder = dataScopeConditionBuilder;
         this.objectMapper = objectMapper;
     }
@@ -147,18 +158,8 @@ public class FrontendContentCompatibilityController {
     @PostMapping("/configs")
     @RequirePermission("system:config:create")
     public ApiResponse<FrontendConfigRecord> createConfig(@Valid @RequestBody FrontendConfigUpsertRequest request) {
-        String configKey = request.getConfigKey().trim();
-        ensureConfigKeyUnique(null, configKey);
-        SystemConfigDO systemConfig = new SystemConfigDO();
-        systemConfig.setConfigKey(configKey);
-        systemConfig.setConfigName(request.getConfigName().trim());
-        systemConfig.setConfigValue(request.getConfigValue().trim());
-        systemConfig.setSensitive(0);
-        systemConfig.setStatus(toNativeStatus(request.getStatus(), true));
-        systemConfig.setSort(10);
-        systemConfig.setRemark(emptyToNull(request.getRemark()));
-        systemConfigMapper.insert(systemConfig);
-        return ApiResponse.success(toFrontendConfig(getRequiredConfig(systemConfig.getId())));
+        Long id = systemConfigService.createConfig(toNativeConfigSaveRequest(request));
+        return ApiResponse.success(toFrontendConfig(getRequiredConfig(id)));
     }
 
     @PatchMapping("/configs/{id}")
@@ -168,17 +169,7 @@ public class FrontendContentCompatibilityController {
         @RequestBody FrontendConfigPatchRequest request
     ) {
         SystemConfigDO current = getRequiredConfig(id);
-        String configKey = resolveString(request.getConfigKey(), current.getConfigKey());
-        ensureConfigKeyUnique(id, configKey);
-        current.setConfigKey(configKey);
-        current.setConfigName(resolveString(request.getConfigName(), current.getConfigName()));
-        current.setConfigValue(resolveString(request.getConfigValue(), current.getConfigValue()));
-        current.setSensitive(0);
-        current.setStatus(request.getStatus() != null
-            ? toNativeStatus(request.getStatus(), true)
-            : defaultInteger(current.getStatus(), ENABLED));
-        current.setRemark(request.getRemark() != null ? emptyToNull(request.getRemark()) : current.getRemark());
-        systemConfigMapper.updateById(current);
+        systemConfigService.updateConfig(id, mergeNativeConfigSaveRequest(current, request));
         return ApiResponse.success(toFrontendConfig(getRequiredConfig(id)));
     }
 
@@ -335,10 +326,8 @@ public class FrontendContentCompatibilityController {
     @PostMapping("/notices")
     @RequirePermission("system:notice:create")
     public ApiResponse<FrontendNoticeRecord> createNotice(@Valid @RequestBody FrontendNoticeUpsertRequest request) {
-        NoticeDO notice = new NoticeDO();
-        fillNotice(notice, toNoticePatch(request), readNoticeMeta(null));
-        noticeMapper.insert(notice);
-        return ApiResponse.success(toFrontendNotice(getRequiredNotice(notice.getId())));
+        Long id = noticeService.createNotice(toNoticeWriteRequest(toNoticePatch(request), readNoticeMeta(null), 0));
+        return ApiResponse.success(toFrontendNotice(getRequiredNotice(id)));
     }
 
     @PatchMapping("/notices/{id}")
@@ -348,8 +337,10 @@ public class FrontendContentCompatibilityController {
         @RequestBody FrontendNoticePatchRequest request
     ) {
         NoticeDO notice = getRequiredNotice(id);
-        fillNotice(notice, mergeNoticePatch(notice, request), readNoticeMeta(notice.getRemark()));
-        noticeMapper.updateById(notice);
+        noticeService.updateNotice(
+            id,
+            toNoticeWriteRequest(mergeNoticePatch(notice, request), readNoticeMeta(notice.getRemark()), defaultInteger(notice.getSort(), 0))
+        );
         return ApiResponse.success(toFrontendNotice(getRequiredNotice(id)));
     }
 
@@ -364,10 +355,11 @@ public class FrontendContentCompatibilityController {
         if (request != null && request.getPublisher() != null) {
             meta = new NoticeCompatMeta(emptyToNull(request.getPublisher()), meta.pinned(), meta.legacyRemark());
         }
-        notice.setPublishStatus(PUBLISHED);
-        notice.setPublishTime(resolvePublishedAt(request == null ? null : request.getPublishedAt(), true));
-        notice.setRemark(writeNoticeMeta(meta));
-        noticeMapper.updateById(notice);
+        NoticePublishCommand command = new NoticePublishCommand();
+        command.setPublishStatus(PUBLISHED);
+        command.setPublishTime(resolvePublishedAt(request == null ? null : request.getPublishedAt(), true));
+        command.setRemark(writeNoticeMeta(meta));
+        noticeService.publishNotice(id, command);
         return ApiResponse.success(toFrontendNotice(getRequiredNotice(id)));
     }
 
@@ -375,9 +367,10 @@ public class FrontendContentCompatibilityController {
     @RequirePermission("system:notice:publish")
     public ApiResponse<FrontendNoticeRecord> revokeNotice(@PathVariable Long id) {
         NoticeDO notice = getRequiredNotice(id);
-        notice.setPublishStatus(DRAFT);
-        notice.setPublishTime(null);
-        noticeMapper.updateById(notice);
+        NoticePublishCommand command = new NoticePublishCommand();
+        command.setPublishStatus(DRAFT);
+        command.setRemark(notice.getRemark());
+        noticeService.publishNotice(id, command);
         return ApiResponse.success(toFrontendNotice(getRequiredNotice(id)));
     }
 
@@ -798,18 +791,24 @@ public class FrontendContentCompatibilityController {
         return merged;
     }
 
-    private void fillNotice(NoticeDO notice, FrontendNoticePatchRequest request, NoticeCompatMeta currentMeta) {
-        notice.setNoticeTitle(request.getTitle().trim());
-        notice.setNoticeContent(request.getContent().trim());
-        notice.setNoticeType(request.getType().trim());
-        notice.setPublishStatus(Boolean.TRUE.equals(request.getStatus()) ? PUBLISHED : DRAFT);
-        notice.setPublishTime(resolvePublishedAt(request.getPublishedAt(), Boolean.TRUE.equals(request.getStatus())));
-        notice.setSort(defaultInteger(notice.getSort(), 0));
-        notice.setRemark(writeNoticeMeta(new NoticeCompatMeta(
+    private NoticeWriteRequest toNoticeWriteRequest(
+        FrontendNoticePatchRequest request,
+        NoticeCompatMeta currentMeta,
+        Integer sort
+    ) {
+        NoticeWriteRequest nativeRequest = new NoticeWriteRequest();
+        nativeRequest.setNoticeTitle(request.getTitle().trim());
+        nativeRequest.setNoticeContent(request.getContent().trim());
+        nativeRequest.setNoticeType(request.getType().trim());
+        nativeRequest.setPublishStatus(Boolean.TRUE.equals(request.getStatus()) ? PUBLISHED : DRAFT);
+        nativeRequest.setPublishTime(resolvePublishedAt(request.getPublishedAt(), Boolean.TRUE.equals(request.getStatus())));
+        nativeRequest.setSort(defaultInteger(sort, 0));
+        nativeRequest.setRemark(writeNoticeMeta(new NoticeCompatMeta(
             request.getPublisher() != null ? emptyToNull(request.getPublisher()) : currentMeta.publisher(),
             currentMeta.pinned(),
             currentMeta.legacyRemark()
         )));
+        return nativeRequest;
     }
 
     private LocalDateTime resolvePublishedAt(String publishedAt, boolean published) {
@@ -837,16 +836,30 @@ public class FrontendContentCompatibilityController {
         );
     }
 
-    private void ensureConfigKeyUnique(Long currentId, String configKey) {
-        LambdaQueryWrapper<SystemConfigDO> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(SystemConfigDO::getConfigKey, configKey);
-        if (currentId != null) {
-            queryWrapper.ne(SystemConfigDO::getId, currentId);
-        }
-        Long count = systemConfigMapper.selectCount(queryWrapper);
-        if (count != null && count > 0) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "System config key already exists");
-        }
+    private SystemConfigSaveRequest toNativeConfigSaveRequest(FrontendConfigUpsertRequest request) {
+        SystemConfigSaveRequest nativeRequest = new SystemConfigSaveRequest();
+        nativeRequest.setConfigKey(request.getConfigKey().trim());
+        nativeRequest.setConfigName(request.getConfigName().trim());
+        nativeRequest.setConfigValue(request.getConfigValue().trim());
+        nativeRequest.setSensitive(0);
+        nativeRequest.setStatus(toNativeStatus(request.getStatus(), true));
+        nativeRequest.setSort(10);
+        nativeRequest.setRemark(emptyToNull(request.getRemark()));
+        return nativeRequest;
+    }
+
+    private SystemConfigSaveRequest mergeNativeConfigSaveRequest(SystemConfigDO current, FrontendConfigPatchRequest request) {
+        SystemConfigSaveRequest nativeRequest = new SystemConfigSaveRequest();
+        nativeRequest.setConfigKey(resolveString(request.getConfigKey(), current.getConfigKey()));
+        nativeRequest.setConfigName(resolveString(request.getConfigName(), current.getConfigName()));
+        nativeRequest.setConfigValue(resolveString(request.getConfigValue(), current.getConfigValue()));
+        nativeRequest.setSensitive(0);
+        nativeRequest.setStatus(request.getStatus() != null
+            ? toNativeStatus(request.getStatus(), true)
+            : defaultInteger(current.getStatus(), ENABLED));
+        nativeRequest.setSort(defaultInteger(current.getSort(), 10));
+        nativeRequest.setRemark(request.getRemark() != null ? emptyToNull(request.getRemark()) : current.getRemark());
+        return nativeRequest;
     }
 
     private SystemConfigDO getRequiredConfig(Long id) {
