@@ -20,6 +20,12 @@ public final class ApiErrorCode {
 
     public static final int AUTH_REFRESH_TOKEN_INVALID = 1011010;
 
+    public static final int AUTH_LOGIN_LOCKED = 1011011;
+
+    public static final int AUTH_CAPTCHA_RATE_LIMITED = 1011012;
+
+    public static final int AUTH_REFRESH_RATE_LIMITED = 1011013;
+
     public static final int PERMISSION_DENIED = 1012001;
 
     public static final int BAD_REQUEST = 40000;
@@ -31,6 +37,8 @@ public final class ApiErrorCode {
     public static final int NOT_FOUND = 40400;
 
     public static final int CONFLICT = 40900;
+
+    public static final int TOO_MANY_REQUESTS = 42900;
 
     public static final int INTERNAL_SERVER_ERROR = 50000;
 

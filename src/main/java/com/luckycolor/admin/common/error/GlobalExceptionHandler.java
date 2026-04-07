@@ -93,11 +93,15 @@ public class GlobalExceptionHandler {
             case "AUTH_TOKEN_INVALID", "TOKEN_INVALID", "TOKEN_REVOKED" -> ApiErrorCode.AUTH_TOKEN_INVALID;
             case "AUTH_REFRESH_TOKEN_EXPIRED" -> ApiErrorCode.AUTH_REFRESH_TOKEN_EXPIRED;
             case "AUTH_REFRESH_TOKEN_INVALID" -> ApiErrorCode.AUTH_REFRESH_TOKEN_INVALID;
+            case "AUTH_LOGIN_LOCKED" -> ApiErrorCode.AUTH_LOGIN_LOCKED;
+            case "AUTH_CAPTCHA_RATE_LIMITED" -> ApiErrorCode.AUTH_CAPTCHA_RATE_LIMITED;
+            case "AUTH_REFRESH_RATE_LIMITED" -> ApiErrorCode.AUTH_REFRESH_RATE_LIMITED;
             case "PERMISSION_DENIED" -> ApiErrorCode.PERMISSION_DENIED;
             default -> switch (status) {
                 case BAD_REQUEST -> ApiErrorCode.BAD_REQUEST;
                 case UNAUTHORIZED -> ApiErrorCode.UNAUTHORIZED;
                 case FORBIDDEN -> ApiErrorCode.FORBIDDEN;
+                case TOO_MANY_REQUESTS -> ApiErrorCode.TOO_MANY_REQUESTS;
                 case NOT_FOUND -> ApiErrorCode.NOT_FOUND;
                 case CONFLICT -> ApiErrorCode.CONFLICT;
                 default -> ApiErrorCode.INTERNAL_SERVER_ERROR;
@@ -115,6 +119,9 @@ public class GlobalExceptionHandler {
             case "AUTH_TOKEN_INVALID", "TOKEN_INVALID", "TOKEN_REVOKED" -> "access token invalid, please sign in again";
             case "AUTH_REFRESH_TOKEN_EXPIRED" -> "refresh token expired, please sign in again";
             case "AUTH_REFRESH_TOKEN_INVALID" -> "refresh token invalid, please sign in again";
+            case "AUTH_LOGIN_LOCKED" -> "too many failed login attempts, please try again later";
+            case "AUTH_CAPTCHA_RATE_LIMITED" -> "captcha requests are too frequent, please try again later";
+            case "AUTH_REFRESH_RATE_LIMITED" -> "refresh requests are too frequent, please try again later";
             case "PERMISSION_DENIED" -> "permission denied";
             default -> {
                 if (reason != null && !reason.isBlank()) {
