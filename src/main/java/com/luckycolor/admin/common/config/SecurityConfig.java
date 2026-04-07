@@ -61,8 +61,6 @@ public class SecurityConfig {
                     "/api/version",
                     "/docs/**",
                     "/api/docs/**",
-                    "/file/*/*/*/**",
-                    "/api/file/*/*/*/**",
                     "/error",
                     "/api/error",
                     "/swagger-ui/**",

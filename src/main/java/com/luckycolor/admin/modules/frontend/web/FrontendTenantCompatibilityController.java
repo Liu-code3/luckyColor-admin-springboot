@@ -69,10 +69,9 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.util.UriUtils;
-import org.springframework.web.server.ResponseStatusException;
 import com.luckycolor.admin.modules.platform.storage.service.StoredFile;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @Validated
@@ -341,7 +340,11 @@ public class FrontendTenantCompatibilityController {
     @RequirePermission("file:upload")
     public ApiResponse<FrontendFileInfo> uploadFile(@RequestParam("file") MultipartFile file) {
         FileUploadResponse uploaded = fileStorageService.upload(file);
-        return ApiResponse.success(new FrontendFileInfo(uploaded.originalFilename(), buildFrontendFileUrl(uploaded.relativePath())));
+        return ApiResponse.success(new FrontendFileInfo(
+            uploaded.originalFilename(),
+            uploaded.downloadUrl(),
+            uploaded.relativePath()
+        ));
     }
 
     @GetMapping("/file/delete")
@@ -351,6 +354,7 @@ public class FrontendTenantCompatibilityController {
     }
 
     @GetMapping("/file/**")
+    @RequirePermission("file:download")
     public ResponseEntity<Resource> readFile(HttpServletRequest request) {
         String requestUri = request.getRequestURI();
         int markerIndex = requestUri.indexOf("/file/");
@@ -917,11 +921,6 @@ public class FrontendTenantCompatibilityController {
         );
     }
 
-    private String buildFrontendFileUrl(String relativePath) {
-        String normalizedPath = defaultString(relativePath, "").replace('\\', '/');
-        return "/api/file/" + UriUtils.encodePath(normalizedPath, StandardCharsets.UTF_8);
-    }
-
     private String humanizeCode(String code) {
         if (!StringUtils.hasText(code)) {
             return "Role";
@@ -1015,7 +1014,7 @@ public class FrontendTenantCompatibilityController {
     public record FrontendTenantPackageMenuAssignment(List<Long> menuIds) {
     }
 
-    public record FrontendFileInfo(String name, String url) {
+    public record FrontendFileInfo(String name, String url, String relativePath) {
     }
 
     @Getter
