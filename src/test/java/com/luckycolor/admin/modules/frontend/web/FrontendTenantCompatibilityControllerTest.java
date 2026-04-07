@@ -181,7 +181,8 @@ class FrontendTenantCompatibilityControllerTest {
         mockMvc.perform(multipart("/file/upload").file(new MockMultipartFile("file", "avatar.png", "image/png", new byte[] {1, 2, 3})))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.name").value("avatar.png"))
-            .andExpect(jsonPath("$.data.url").value("/api/file/2026/04/03/avatar.png"));
+            .andExpect(jsonPath("$.data.url").value("/api/admin/files/download?path=2026/04/03/avatar.png"))
+            .andExpect(jsonPath("$.data.relativePath").value("2026/04/03/avatar.png"));
     }
 
     @Test
@@ -195,7 +196,7 @@ class FrontendTenantCompatibilityControllerTest {
     }
 
     @Test
-    void shouldServeFrontendFileReadEndpointWithoutPermissionHeader() throws Exception {
+    void shouldServeFrontendFileReadEndpointContract() throws Exception {
         when(fileStorageService.download("2026/04/03/avatar.png")).thenReturn(
             new StoredFile(new ByteArrayResource(new byte[] {1, 2, 3}), "avatar.png", 3L, "image/png")
         );
