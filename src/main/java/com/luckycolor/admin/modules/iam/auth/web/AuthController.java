@@ -7,6 +7,7 @@ import com.luckycolor.admin.infrastructure.security.config.SecurityJwtProperties
 import com.luckycolor.admin.infrastructure.security.jwt.JwtAuthenticatedUser;
 import com.luckycolor.admin.infrastructure.security.jwt.JwtTokenService;
 import com.luckycolor.admin.modules.iam.auth.config.LoginCaptchaProperties;
+import com.luckycolor.admin.modules.iam.auth.service.AuthAntiAbuseService;
 import com.luckycolor.admin.modules.iam.auth.service.AuthService;
 import com.luckycolor.admin.modules.iam.auth.service.LegacyLoginCaptchaService;
 import com.luckycolor.admin.modules.iam.auth.service.LoginCaptchaService;
@@ -36,6 +37,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.lang.Nullable;
 import org.springframework.security.core.Authentication;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -55,6 +57,7 @@ public class AuthController {
     private final LoginCaptchaProperties loginCaptchaProperties;
     private final JwtTokenService jwtTokenService;
     private final SecurityJwtProperties securityJwtProperties;
+    private final AuthAntiAbuseService authAntiAbuseService;
 
     public AuthController(
         AuthService authService,
@@ -62,7 +65,8 @@ public class AuthController {
         @Nullable LegacyLoginCaptchaService legacyLoginCaptchaService,
         LoginCaptchaProperties loginCaptchaProperties,
         JwtTokenService jwtTokenService,
-        SecurityJwtProperties securityJwtProperties
+        SecurityJwtProperties securityJwtProperties,
+        AuthAntiAbuseService authAntiAbuseService
     ) {
         this.authService = authService;
         this.loginCaptchaService = loginCaptchaService;
@@ -70,6 +74,7 @@ public class AuthController {
         this.loginCaptchaProperties = loginCaptchaProperties;
         this.jwtTokenService = jwtTokenService;
         this.securityJwtProperties = securityJwtProperties;
+        this.authAntiAbuseService = authAntiAbuseService;
     }
 
     @GetMapping("/auth/captcha")
@@ -96,30 +101,36 @@ public class AuthController {
             )
         )
     })
-    public ApiResponse<LoginCaptchaResponse> captcha() {
+    public ApiResponse<LoginCaptchaResponse> captcha(@Parameter(hidden = true) HttpServletRequest httpServletRequest) {
         if (!loginCaptchaProperties.isEnabled() || loginCaptchaService == null) {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Login captcha service is unavailable");
         }
+        authAntiAbuseService.checkCaptchaAllowed(resolveRemoteIp(httpServletRequest));
         return ApiResponse.success(loginCaptchaService.createCaptcha());
     }
 
     @GetMapping("/auth/captcha/challenge")
     @Operation(summary = "Get legacy arithmetic login captcha challenge")
-    public ApiResponse<LegacyLoginCaptchaChallengeResponse> legacyCaptchaChallenge() {
+    public ApiResponse<LegacyLoginCaptchaChallengeResponse> legacyCaptchaChallenge(
+        @Parameter(hidden = true) HttpServletRequest httpServletRequest
+    ) {
         if (!loginCaptchaProperties.isEnabled() || legacyLoginCaptchaService == null) {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Login captcha service is unavailable");
         }
+        authAntiAbuseService.checkCaptchaAllowed(resolveRemoteIp(httpServletRequest));
         return ApiResponse.success(legacyLoginCaptchaService.createChallenge());
     }
 
     @PostMapping("/auth/captcha/verify")
     @Operation(summary = "Verify legacy arithmetic login captcha challenge")
     public ApiResponse<LegacyLoginCaptchaVerifyResponse> legacyCaptchaVerify(
-        @Valid @RequestBody LegacyLoginCaptchaVerifyRequest request
+        @Valid @RequestBody LegacyLoginCaptchaVerifyRequest request,
+        @Parameter(hidden = true) HttpServletRequest httpServletRequest
     ) {
         if (!loginCaptchaProperties.isEnabled() || legacyLoginCaptchaService == null) {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Login captcha service is unavailable");
         }
+        authAntiAbuseService.checkCaptchaAllowed(resolveRemoteIp(httpServletRequest));
         return ApiResponse.success(legacyLoginCaptchaService.verifyChallenge(request.captchaId(), request.answer()));
     }
 
@@ -163,7 +174,7 @@ public class AuthController {
         @Parameter(hidden = true) HttpServletResponse httpServletResponse,
         @RequestHeader(value = "x-tenant-id", required = false) String tenantId
     ) {
-        request.setRemoteIp(httpServletRequest.getRemoteAddr());
+        request.setRemoteIp(resolveRemoteIp(httpServletRequest));
         request.setTenantId(tenantId);
         AuthLoginResponse response = authService.login(request);
         writeRefreshCookie(httpServletResponse, response.refreshToken());
@@ -176,7 +187,8 @@ public class AuthController {
         @Parameter(hidden = true) HttpServletRequest httpServletRequest,
         @Parameter(hidden = true) HttpServletResponse httpServletResponse
     ) {
-        AuthRefreshResponse response = authService.refresh(extractRefreshToken(httpServletRequest));
+        String refreshToken = extractRefreshToken(httpServletRequest);
+        AuthRefreshResponse response = authService.refresh(refreshToken);
         writeRefreshCookie(httpServletResponse, response.refreshToken());
         return ApiResponse.success(response);
     }
@@ -308,6 +320,17 @@ public class AuthController {
         }
         jakarta.servlet.http.Cookie cookie = WebUtils.getCookie(request, securityJwtProperties.getRefreshCookieName());
         return cookie == null ? null : cookie.getValue();
+    }
+
+    private String resolveRemoteIp(HttpServletRequest request) {
+        if (request == null) {
+            return "unknown";
+        }
+        String forwardedFor = request.getHeader("X-Forwarded-For");
+        if (StringUtils.hasText(forwardedFor)) {
+            return forwardedFor.split(",")[0].trim();
+        }
+        return StringUtils.hasText(request.getRemoteAddr()) ? request.getRemoteAddr() : "unknown";
     }
 
     private void writeRefreshCookie(HttpServletResponse response, String refreshToken) {
