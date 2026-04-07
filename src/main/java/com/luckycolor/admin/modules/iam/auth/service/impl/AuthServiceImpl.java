@@ -9,6 +9,7 @@ import com.luckycolor.admin.modules.iam.audit.service.SecurityAuditLogService;
 import com.luckycolor.admin.modules.iam.auth.config.LoginCaptchaProperties;
 import com.luckycolor.admin.modules.iam.auth.model.AuthUser;
 import com.luckycolor.admin.modules.iam.auth.service.AuthAccessRouteService;
+import com.luckycolor.admin.modules.iam.auth.service.AuthAntiAbuseService;
 import com.luckycolor.admin.modules.iam.auth.service.AuthService;
 import com.luckycolor.admin.modules.iam.auth.service.LoginCaptchaService;
 import com.luckycolor.admin.modules.iam.auth.service.LegacyLoginCaptchaService;
@@ -57,6 +58,7 @@ public class AuthServiceImpl implements AuthService {
     private final LegacyLoginCaptchaService legacyLoginCaptchaService;
     private final SecurityAuditLogService securityAuditLogService;
     private final TenantExternalIdService tenantExternalIdService;
+    private final AuthAntiAbuseService authAntiAbuseService;
 
     public AuthServiceImpl(
         AuthUserService authUserService,
@@ -70,7 +72,8 @@ public class AuthServiceImpl implements AuthService {
         @Nullable SecurityAuditLogService securityAuditLogService,
         @Nullable LoginCaptchaService loginCaptchaService,
         @Nullable LegacyLoginCaptchaService legacyLoginCaptchaService,
-        TenantExternalIdService tenantExternalIdService
+        TenantExternalIdService tenantExternalIdService,
+        AuthAntiAbuseService authAntiAbuseService
     ) {
         this.authUserService = authUserService;
         this.passwordEncoder = passwordEncoder;
@@ -84,14 +87,17 @@ public class AuthServiceImpl implements AuthService {
         this.loginCaptchaService = loginCaptchaService;
         this.legacyLoginCaptchaService = legacyLoginCaptchaService;
         this.tenantExternalIdService = tenantExternalIdService;
+        this.authAntiAbuseService = authAntiAbuseService;
     }
 
     @Override
     public AuthLoginResponse login(AuthLoginRequest request) {
+        authAntiAbuseService.checkLoginAllowed(request.getTenantId(), request.getUsername());
         validateCaptchaIfNecessary(request);
         AuthUser user = authUserService.findByUsername(request.getUsername(), request.getTenantId());
         if (user == null) {
             loginAuditService.recordFailure(null, request.getUsername(), null, request.getRemoteIp(), "USER_NOT_FOUND");
+            authAntiAbuseService.recordLoginFailure(request.getTenantId(), request.getUsername());
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "AUTH_LOGIN_FAILED");
         }
         if (!Objects.equals(user.status(), 0)) {
@@ -112,6 +118,7 @@ public class AuthServiceImpl implements AuthService {
                 request.getRemoteIp(),
                 "PASSWORD_MISMATCH"
             );
+            authAntiAbuseService.recordLoginFailure(request.getTenantId(), request.getUsername());
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "AUTH_LOGIN_FAILED");
         }
 
@@ -127,6 +134,7 @@ public class AuthServiceImpl implements AuthService {
         List<String> menuCodes = resolveMenuCodes(accessSnapshot);
         List<String> buttonCodes = resolveButtonCodes(user, accessSnapshot);
         loginAuditService.recordSuccess(user.userId(), user.username(), user.tenantId(), request.getRemoteIp());
+        authAntiAbuseService.clearLoginFailures(request.getTenantId(), request.getUsername());
         return new AuthLoginResponse(
             accessToken,
             "Bearer",
@@ -164,6 +172,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public AuthRefreshResponse refresh(String refreshToken) {
+        authAntiAbuseService.checkRefreshAllowed(refreshToken);
         if (!StringUtils.hasText(refreshToken)) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "AUTH_REFRESH_TOKEN_INVALID");
         }

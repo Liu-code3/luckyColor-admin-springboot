@@ -13,10 +13,12 @@ import com.luckycolor.admin.infrastructure.security.jwt.JwtTokenService;
 import com.luckycolor.admin.infrastructure.tenant.service.TenantExternalIdService;
 import com.luckycolor.admin.modules.iam.audit.service.SecurityAuditLogService;
 import com.luckycolor.admin.modules.iam.auth.config.AuthAccessProperties;
+import com.luckycolor.admin.modules.iam.auth.config.AuthAntiAbuseProperties;
 import com.luckycolor.admin.modules.iam.auth.config.LocalAuthProperties;
 import com.luckycolor.admin.modules.iam.auth.config.LoginCaptchaProperties;
 import com.luckycolor.admin.modules.iam.auth.service.impl.AuthAccessRouteServiceImpl;
 import com.luckycolor.admin.modules.iam.auth.service.impl.AuthServiceImpl;
+import com.luckycolor.admin.modules.iam.auth.service.impl.InMemoryAuthAntiAbuseService;
 import com.luckycolor.admin.modules.iam.auth.service.impl.InMemoryAuthTokenSessionService;
 import com.luckycolor.admin.modules.iam.auth.service.impl.LocalAuthUserServiceImpl;
 import com.luckycolor.admin.modules.iam.auth.web.response.AuthAccessSnapshotResponse;
@@ -40,6 +42,7 @@ class AuthServiceImplTest {
         JwtTokenService jwtTokenService = Mockito.mock(JwtTokenService.class);
         LoginCaptchaService loginCaptchaService = Mockito.mock(LoginCaptchaService.class);
         LoginAuditService loginAuditService = Mockito.mock(LoginAuditService.class);
+        AuthAntiAbuseService authAntiAbuseService = Mockito.mock(AuthAntiAbuseService.class);
         PasswordEncoder passwordEncoder = Mockito.mock(PasswordEncoder.class);
         when(passwordEncoder.matches("123456", "$2a$encoded-password")).thenReturn(true);
         when(jwtTokenService.createAccessToken(1L, "admin", 1L, List.of("ROLE_SUPER_ADMIN"))).thenReturn("jwt-token");
@@ -56,7 +59,8 @@ class AuthServiceImplTest {
             null,
             loginCaptchaService,
             null,
-            buildTenantExternalIdService()
+            buildTenantExternalIdService(),
+            authAntiAbuseService
         );
 
         AuthLoginResponse response = authService.login(buildLoginRequest("123456"));
@@ -66,6 +70,8 @@ class AuthServiceImplTest {
         assertThat(response.tokenType()).isEqualTo("Bearer");
         assertThat(response.userId()).isEqualTo(1L);
         assertThat(response.tenantId()).isEqualTo("tenant_001");
+        verify(authAntiAbuseService).checkLoginAllowed("tenant_001", "admin");
+        verify(authAntiAbuseService).clearLoginFailures("tenant_001", "admin");
         verify(loginCaptchaService).validateCaptcha("captcha-1", "ABCD");
         verify(loginAuditService).recordSuccess(1L, "admin", 1L, "127.0.0.1");
     }
@@ -104,7 +110,8 @@ class AuthServiceImplTest {
             null,
             null,
             null,
-            buildTenantExternalIdService()
+            buildTenantExternalIdService(),
+            buildAntiAbuseService()
         );
 
         AuthLoginResponse loginResponse = authService.login(buildLoginRequest("123456"));
@@ -126,6 +133,7 @@ class AuthServiceImplTest {
     @Test
     void shouldRejectUnknownUser() {
         LoginAuditService loginAuditService = Mockito.mock(LoginAuditService.class);
+        AuthAntiAbuseService authAntiAbuseService = Mockito.mock(AuthAntiAbuseService.class);
         AuthService authService = new AuthServiceImpl(
             new LocalAuthUserServiceImpl(buildAuthProperties("123456", 0)),
             Mockito.mock(PasswordEncoder.class),
@@ -138,7 +146,8 @@ class AuthServiceImplTest {
             null,
             null,
             null,
-            buildTenantExternalIdService()
+            buildTenantExternalIdService(),
+            authAntiAbuseService
         );
         AuthLoginRequest request = buildLoginRequest("123456");
         request.setUsername("missing");
@@ -148,12 +157,14 @@ class AuthServiceImplTest {
             .hasMessageContaining("401 UNAUTHORIZED");
 
         verify(loginAuditService).recordFailure(null, "missing", null, "127.0.0.1", "USER_NOT_FOUND");
+        verify(authAntiAbuseService).recordLoginFailure("tenant_001", "missing");
     }
 
     @Test
     void shouldRejectInvalidPassword() {
         JwtTokenService jwtTokenService = Mockito.mock(JwtTokenService.class);
         LoginAuditService loginAuditService = Mockito.mock(LoginAuditService.class);
+        AuthAntiAbuseService authAntiAbuseService = Mockito.mock(AuthAntiAbuseService.class);
         PasswordEncoder passwordEncoder = Mockito.mock(PasswordEncoder.class);
         when(passwordEncoder.matches("wrong", "$2a$encoded-password")).thenReturn(false);
         AuthService authService = new AuthServiceImpl(
@@ -168,7 +179,8 @@ class AuthServiceImplTest {
             null,
             null,
             null,
-            buildTenantExternalIdService()
+            buildTenantExternalIdService(),
+            authAntiAbuseService
         );
         AuthLoginRequest request = buildLoginRequest("wrong");
 
@@ -177,7 +189,39 @@ class AuthServiceImplTest {
             .hasMessageContaining("401 UNAUTHORIZED");
 
         verify(loginAuditService).recordFailure(1L, "admin", 1L, "127.0.0.1", "PASSWORD_MISMATCH");
+        verify(authAntiAbuseService).recordLoginFailure("tenant_001", "admin");
         verify(jwtTokenService, never()).createAccessToken(eq(1L), eq("admin"), eq(1L), eq(List.of("ROLE_SUPER_ADMIN")));
+    }
+
+    @Test
+    void shouldRejectLockedLoginBeforeValidatingCaptcha() {
+        LoginCaptchaService loginCaptchaService = Mockito.mock(LoginCaptchaService.class);
+        AuthAntiAbuseProperties antiAbuseProperties = new AuthAntiAbuseProperties();
+        InMemoryAuthAntiAbuseService authAntiAbuseService = new InMemoryAuthAntiAbuseService(antiAbuseProperties);
+        for (int i = 0; i < antiAbuseProperties.getLogin().getMaxFailures(); i++) {
+            authAntiAbuseService.recordLoginFailure("tenant_001", "admin");
+        }
+        AuthService authService = new AuthServiceImpl(
+            new LocalAuthUserServiceImpl(buildAuthProperties("123456", 0)),
+            Mockito.mock(PasswordEncoder.class),
+            Mockito.mock(JwtTokenService.class),
+            new InMemoryAuthTokenSessionService(),
+            new AuthAccessRouteServiceImpl(buildAccessProperties()),
+            buildJwtProperties(),
+            buildCaptchaProperties(true),
+            Mockito.mock(LoginAuditService.class),
+            null,
+            loginCaptchaService,
+            null,
+            buildTenantExternalIdService(),
+            authAntiAbuseService
+        );
+
+        assertThatThrownBy(() -> authService.login(buildLoginRequest("123456")))
+            .isInstanceOf(ResponseStatusException.class)
+            .hasMessageContaining("429 TOO_MANY_REQUESTS");
+
+        verify(loginCaptchaService, never()).validateCaptcha(eq("captcha-1"), eq("ABCD"));
     }
 
     @Test
@@ -195,7 +239,8 @@ class AuthServiceImplTest {
             null,
             null,
             null,
-            buildTenantExternalIdService()
+            buildTenantExternalIdService(),
+            buildAntiAbuseService()
         );
 
         assertThatThrownBy(() -> authService.login(buildLoginRequest("123456")))
@@ -219,7 +264,8 @@ class AuthServiceImplTest {
             null,
             null,
             null,
-            buildTenantExternalIdService()
+            buildTenantExternalIdService(),
+            buildAntiAbuseService()
         );
 
         assertThatThrownBy(() -> authService.login(buildLoginRequest("123456")))
@@ -246,7 +292,8 @@ class AuthServiceImplTest {
             securityAuditLogService,
             null,
             null,
-            buildTenantExternalIdService()
+            buildTenantExternalIdService(),
+            buildAntiAbuseService()
         );
 
         authService.logout(
@@ -275,7 +322,8 @@ class AuthServiceImplTest {
             null,
             null,
             null,
-            buildTenantExternalIdService()
+            buildTenantExternalIdService(),
+            buildAntiAbuseService()
         );
 
         AuthProfileResponse response = authService.getProfile(
@@ -302,7 +350,8 @@ class AuthServiceImplTest {
             null,
             null,
             null,
-            buildTenantExternalIdService()
+            buildTenantExternalIdService(),
+            buildAntiAbuseService()
         );
 
         AuthPermissionSnapshotResponse response = authService.getPermissionSnapshot(
@@ -328,7 +377,8 @@ class AuthServiceImplTest {
             null,
             null,
             null,
-            buildTenantExternalIdService()
+            buildTenantExternalIdService(),
+            buildAntiAbuseService()
         );
 
         List<AuthRouteResponse> response = authService.getRoutes(
@@ -380,7 +430,8 @@ class AuthServiceImplTest {
             null,
             null,
             null,
-            buildTenantExternalIdService()
+            buildTenantExternalIdService(),
+            buildAntiAbuseService()
         );
 
         AuthAccessSnapshotResponse response = authService.getAccessSnapshot(
@@ -431,6 +482,10 @@ class AuthServiceImplTest {
 
     private TenantExternalIdService buildTenantExternalIdService() {
         return new TenantExternalIdService(null);
+    }
+
+    private AuthAntiAbuseService buildAntiAbuseService() {
+        return Mockito.mock(AuthAntiAbuseService.class);
     }
 
     private AuthAccessProperties buildAccessProperties() {
