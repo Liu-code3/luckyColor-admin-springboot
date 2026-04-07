@@ -1,3 +1,9 @@
+ALTER TABLE sys_role
+MODIFY COLUMN permission_codes VARCHAR(2000) NULL;
+
+ALTER TABLE sys_user
+MODIFY COLUMN permission_codes VARCHAR(2000) NULL;
+
 UPDATE sys_role
 SET permission_codes = TRIM(BOTH ',' FROM CONCAT_WS(
     ',',
