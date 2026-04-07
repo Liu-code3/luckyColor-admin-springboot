@@ -19,6 +19,8 @@ import com.luckycolor.admin.modules.system.department.web.request.SystemDepartme
 import com.luckycolor.admin.modules.system.menu.dataobject.MenuDO;
 import com.luckycolor.admin.modules.system.menu.mapper.MenuMapper;
 import com.luckycolor.admin.modules.system.menu.service.MenuService;
+import com.luckycolor.admin.modules.system.menu.service.request.MenuSyncItemRequest;
+import com.luckycolor.admin.modules.system.menu.service.request.MenuSyncRequest;
 import com.luckycolor.admin.modules.system.menu.support.FrontendMenuContractMapper;
 import com.luckycolor.admin.modules.system.menu.web.request.MenuSaveRequest;
 import com.luckycolor.admin.modules.system.menu.web.request.MenuStatusRequest;
@@ -56,7 +58,6 @@ import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.http.HttpStatus;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -418,19 +419,10 @@ public class FrontendSystemCompatibilityController {
 
     @PutMapping("/menus/sync")
     @RequirePermission("system:menu:update")
-    @Transactional
     public ApiResponse<List<FrontendMenuRecord>> syncMenus(
         @Valid @RequestBody FrontendMenuSyncRequest request
     ) {
-        List<MenuDO> currentMenus = listMenus();
-        Map<Long, MenuDO> menusById = currentMenus.stream().collect(Collectors.toMap(MenuDO::getId, item -> item));
-        validateSyncRequest(request.getMenus(), menusById);
-        for (FrontendMenuSyncItemRequest item : request.getMenus()) {
-            MenuDO menu = menusById.get(item.getId());
-            menu.setParentId(normalizeParentId(item.getParentId()));
-            menu.setSort(item.getSort());
-            menuMapper.updateById(menu);
-        }
+        menuService.syncMenus(toNativeMenuSyncRequest(request));
         return ApiResponse.success(buildMenuTree(listMenus(), 0L, null));
     }
 
@@ -1109,46 +1101,18 @@ public class FrontendSystemCompatibilityController {
             .collect(Collectors.joining(","));
     }
 
-    private void validateSyncRequest(List<FrontendMenuSyncItemRequest> items, Map<Long, MenuDO> menusById) {
-        Set<Long> uniqueIds = new LinkedHashSet<>();
-        for (FrontendMenuSyncItemRequest item : items) {
-            if (!uniqueIds.add(item.getId())) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Duplicate menu id in sync payload");
-            }
-            if (!menusById.containsKey(item.getId())) {
-                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Menu not found");
-            }
-        }
-        Map<Long, Long> nextParentIds = menusById.values().stream()
-            .collect(Collectors.toMap(MenuDO::getId, menu -> normalizeParentId(menu.getParentId())));
-        for (FrontendMenuSyncItemRequest item : items) {
-            Long normalizedParentId = normalizeParentId(item.getParentId());
-            if (!normalizedParentId.equals(0L) && !menusById.containsKey(normalizedParentId)) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Parent menu not found");
-            }
-            nextParentIds.put(item.getId(), normalizedParentId);
-        }
-        for (Long menuId : nextParentIds.keySet()) {
-            assertNoMenuCycle(menuId, nextParentIds);
-        }
+    private MenuSyncRequest toNativeMenuSyncRequest(FrontendMenuSyncRequest request) {
+        MenuSyncRequest nativeRequest = new MenuSyncRequest();
+        nativeRequest.setMenus(request.getMenus().stream().map(this::toNativeMenuSyncItemRequest).toList());
+        return nativeRequest;
     }
 
-    private void assertNoMenuCycle(Long menuId, Map<Long, Long> nextParentIds) {
-        Set<Long> visited = new HashSet<>();
-        Long currentId = menuId;
-        while (true) {
-            Long parentId = normalizeParentId(nextParentIds.get(currentId));
-            if (parentId.equals(0L)) {
-                return;
-            }
-            if (!visited.add(parentId)) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Menu hierarchy cycle detected");
-            }
-            if (!nextParentIds.containsKey(parentId)) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Parent menu not found");
-            }
-            currentId = parentId;
-        }
+    private MenuSyncItemRequest toNativeMenuSyncItemRequest(FrontendMenuSyncItemRequest item) {
+        MenuSyncItemRequest nativeItem = new MenuSyncItemRequest();
+        nativeItem.setId(item.getId());
+        nativeItem.setParentId(item.getParentId());
+        nativeItem.setSort(item.getSort());
+        return nativeItem;
     }
 
     private String resolveMenuPath(MenuDO menu, Map<Long, MenuDO> menusById) {

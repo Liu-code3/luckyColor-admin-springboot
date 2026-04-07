@@ -12,6 +12,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.luckycolor.admin.modules.system.menu.dataobject.MenuDO;
 import com.luckycolor.admin.modules.system.menu.mapper.MenuMapper;
 import com.luckycolor.admin.modules.system.menu.service.impl.MenuServiceImpl;
+import com.luckycolor.admin.modules.system.menu.service.request.MenuSyncItemRequest;
+import com.luckycolor.admin.modules.system.menu.service.request.MenuSyncRequest;
 import com.luckycolor.admin.modules.system.menu.web.request.MenuSaveRequest;
 import com.luckycolor.admin.modules.system.menu.web.request.MenuStatusRequest;
 import com.luckycolor.admin.modules.system.menu.web.request.MenuTreeQuery;
@@ -107,6 +109,29 @@ class MenuServiceImplTest {
 
         assertThat(menu.getStatus()).isEqualTo(1);
         verify(mapper).updateById(menu);
+    }
+
+    @Test
+    void shouldSyncMenus() {
+        MenuMapper mapper = Mockito.mock(MenuMapper.class);
+        MenuDO dashboard = menu(1L, 0L, "Dashboard", 1);
+        MenuDO system = menu(10L, 0L, "System", 2);
+        MenuDO users = menu(11L, 10L, "System User", 1);
+        when(mapper.selectList(any())).thenReturn(List.of(dashboard, system, users));
+        MenuService service = new MenuServiceImpl(mapper, objectMapper);
+
+        MenuSyncRequest request = new MenuSyncRequest();
+        MenuSyncItemRequest item = new MenuSyncItemRequest();
+        item.setId(11L);
+        item.setParentId(0L);
+        item.setSort(3);
+        request.setMenus(List.of(item));
+
+        service.syncMenus(request);
+
+        assertThat(users.getParentId()).isEqualTo(0L);
+        assertThat(users.getSort()).isEqualTo(3);
+        verify(mapper).updateById(users);
     }
 
     @Test

@@ -8,13 +8,20 @@ import com.luckycolor.admin.infrastructure.tenant.annotation.TenantIgnore;
 import com.luckycolor.admin.modules.system.menu.dataobject.MenuDO;
 import com.luckycolor.admin.modules.system.menu.mapper.MenuMapper;
 import com.luckycolor.admin.modules.system.menu.service.MenuService;
+import com.luckycolor.admin.modules.system.menu.service.request.MenuSyncItemRequest;
+import com.luckycolor.admin.modules.system.menu.service.request.MenuSyncRequest;
 import com.luckycolor.admin.modules.system.menu.web.request.MenuSaveRequest;
 import com.luckycolor.admin.modules.system.menu.web.request.MenuStatusRequest;
 import com.luckycolor.admin.modules.system.menu.web.request.MenuTreeQuery;
 import com.luckycolor.admin.modules.system.menu.web.response.MenuDetailResponse;
 import com.luckycolor.admin.modules.system.menu.web.response.MenuTreeResponse;
 import java.util.Comparator;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 import com.luckycolor.admin.common.config.ConditionalOnPersistenceEnabled;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -65,6 +72,19 @@ public class MenuServiceImpl implements MenuService {
     }
 
     @Override
+    public void syncMenus(MenuSyncRequest request) {
+        List<MenuDO> currentMenus = menuMapper.selectList(buildAllMenusQuery());
+        Map<Long, MenuDO> menusById = currentMenus.stream().collect(Collectors.toMap(MenuDO::getId, item -> item));
+        validateSyncRequest(request.getMenus(), menusById);
+        for (MenuSyncItemRequest item : request.getMenus()) {
+            MenuDO menu = menusById.get(item.getId());
+            menu.setParentId(normalizeParentId(item.getParentId()));
+            menu.setSort(item.getSort());
+            menuMapper.updateById(menu);
+        }
+    }
+
+    @Override
     public void updateMenuStatus(Long id, MenuStatusRequest request) {
         MenuDO menu = getRequiredMenu(id);
         menu.setStatus(request.getStatus());
@@ -87,6 +107,14 @@ public class MenuServiceImpl implements MenuService {
         LambdaQueryWrapper<MenuDO> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.like(StringUtils.hasText(query.getMenuName()), MenuDO::getMenuName, query.getMenuName());
         queryWrapper.eq(query.getStatus() != null, MenuDO::getStatus, query.getStatus());
+        queryWrapper.orderByAsc(MenuDO::getParentId)
+            .orderByAsc(MenuDO::getSort)
+            .orderByAsc(MenuDO::getId);
+        return queryWrapper;
+    }
+
+    private LambdaQueryWrapper<MenuDO> buildAllMenusQuery() {
+        LambdaQueryWrapper<MenuDO> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.orderByAsc(MenuDO::getParentId)
             .orderByAsc(MenuDO::getSort)
             .orderByAsc(MenuDO::getId);
@@ -180,6 +208,48 @@ public class MenuServiceImpl implements MenuService {
             .anyMatch(item -> currentId == null || !currentId.equals(item.getId()));
         if (duplicated) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Route name already exists");
+        }
+    }
+
+    private void validateSyncRequest(List<MenuSyncItemRequest> items, Map<Long, MenuDO> menusById) {
+        Set<Long> uniqueIds = new LinkedHashSet<>();
+        for (MenuSyncItemRequest item : items) {
+            if (!uniqueIds.add(item.getId())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Duplicate menu id in sync payload");
+            }
+            if (!menusById.containsKey(item.getId())) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Menu not found");
+            }
+        }
+        Map<Long, Long> nextParentIds = menusById.values().stream()
+            .collect(Collectors.toMap(MenuDO::getId, menu -> normalizeParentId(menu.getParentId())));
+        for (MenuSyncItemRequest item : items) {
+            Long normalizedParentId = normalizeParentId(item.getParentId());
+            if (!normalizedParentId.equals(0L) && !menusById.containsKey(normalizedParentId)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Parent menu not found");
+            }
+            nextParentIds.put(item.getId(), normalizedParentId);
+        }
+        for (Long menuId : nextParentIds.keySet()) {
+            assertNoMenuCycle(menuId, nextParentIds);
+        }
+    }
+
+    private void assertNoMenuCycle(Long menuId, Map<Long, Long> nextParentIds) {
+        Set<Long> visited = new HashSet<>();
+        Long currentId = menuId;
+        while (true) {
+            Long parentId = normalizeParentId(nextParentIds.get(currentId));
+            if (parentId.equals(0L)) {
+                return;
+            }
+            if (!visited.add(parentId)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Menu hierarchy cycle detected");
+            }
+            if (!nextParentIds.containsKey(parentId)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Parent menu not found");
+            }
+            currentId = parentId;
         }
     }
 

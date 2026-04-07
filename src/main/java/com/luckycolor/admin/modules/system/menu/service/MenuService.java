@@ -1,5 +1,6 @@
 package com.luckycolor.admin.modules.system.menu.service;
 
+import com.luckycolor.admin.modules.system.menu.service.request.MenuSyncRequest;
 import com.luckycolor.admin.modules.system.menu.web.request.MenuTreeQuery;
 import com.luckycolor.admin.modules.system.menu.web.request.MenuSaveRequest;
 import com.luckycolor.admin.modules.system.menu.web.request.MenuStatusRequest;
@@ -16,6 +17,8 @@ public interface MenuService {
     Long createMenu(MenuSaveRequest request);
 
     void updateMenu(Long id, MenuSaveRequest request);
+
+    void syncMenus(MenuSyncRequest request);
 
     void updateMenuStatus(Long id, MenuStatusRequest request);
 

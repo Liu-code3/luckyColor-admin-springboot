@@ -3,7 +3,6 @@ package com.luckycolor.admin.modules.frontend.web;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -21,6 +20,7 @@ import com.luckycolor.admin.modules.system.department.service.SystemDepartmentSe
 import com.luckycolor.admin.modules.system.menu.dataobject.MenuDO;
 import com.luckycolor.admin.modules.system.menu.mapper.MenuMapper;
 import com.luckycolor.admin.modules.system.menu.service.MenuService;
+import com.luckycolor.admin.modules.system.menu.service.request.MenuSyncRequest;
 import com.luckycolor.admin.modules.system.menu.web.request.MenuSaveRequest;
 import com.luckycolor.admin.modules.system.menu.web.request.MenuStatusRequest;
 import com.luckycolor.admin.modules.system.role.dataobject.SystemRoleDO;
@@ -669,10 +669,7 @@ class FrontendSystemCompatibilityControllerTest {
         syncedSystemUser.setParentId(0L);
         syncedSystemUser.setSort(2);
 
-        when(menuMapper.selectList(any())).thenReturn(
-            List.of(dashboard, systemRoot, systemUser),
-            List.of(syncedDashboard, syncedSystemRoot, syncedSystemUser)
-        );
+        when(menuMapper.selectList(any())).thenReturn(List.of(syncedDashboard, syncedSystemRoot, syncedSystemUser));
 
         FrontendSystemCompatibilityController.FrontendMenuSyncRequest request =
             new FrontendSystemCompatibilityController.FrontendMenuSyncRequest();
@@ -691,7 +688,12 @@ class FrontendSystemCompatibilityControllerTest {
         List<FrontendSystemCompatibilityController.FrontendMenuRecord> response =
             controller.syncMenus(request).data();
 
-        verify(menuMapper, times(2)).updateById(any(MenuDO.class));
+        ArgumentCaptor<MenuSyncRequest> captor = ArgumentCaptor.forClass(MenuSyncRequest.class);
+        verify(menuService).syncMenus(captor.capture());
+        assertThat(captor.getValue().getMenus()).hasSize(2);
+        assertThat(captor.getValue().getMenus().get(0).getId()).isEqualTo(11L);
+        assertThat(captor.getValue().getMenus().get(0).getParentId()).isEqualTo(0L);
+        assertThat(captor.getValue().getMenus().get(0).getSort()).isEqualTo(2);
         assertThat(response).extracting(FrontendSystemCompatibilityController.FrontendMenuRecord::id)
             .containsExactly(11L, 1L, 10L);
         assertThat(response.get(0).pid()).isEqualTo(0L);
