@@ -47,7 +47,7 @@
 出现失败时按顺序定位：
 
 1. 环境问题：MySQL / Redis / 端口 / 配置
-2. 启动问题：Flyway / Spring Boot / 前端代理
+2. 启动问题：Spring Boot / 数据源 / 前端代理
 3. 契约问题：字段、路径、权限、租户头
 4. 前端渲染问题：路由恢复、菜单树、按钮权限、页面报错
 5. 数据问题：种子数据、缓存、角色菜单关系
@@ -59,7 +59,7 @@
 | Spring Boot 后端 | `D:\zl\luckycolor-admin-springboot` | `http://127.0.0.1:3001/api` | 当前主测试对象 |
 | 前端管理台 | `D:\zl\luckyColor-admin` | `http://127.0.0.1:9900` | 通过 Vite 代理转发 `/api` |
 | Redis | 本地实例 | `127.0.0.1:6379/0` | 验证验证码、缓存、会话相关能力 |
-| MySQL | 本地实例 | `127.0.0.1:3306/luckycolor_admin_sb` | 验证迁移、种子数据、业务落库 |
+| MySQL | 本地实例 | `127.0.0.1:3306/luckycolor_admin_sb` | 验证基础数据、业务落库 |
 
 默认账号：
 
@@ -86,7 +86,6 @@
 - 上下文：`/api`
 - 数据库：`luckycolor_admin_sb`
 - Redis：`127.0.0.1:6379/0`
-- Flyway：默认开启
 
 ### 4.3 前端配置基线
 
@@ -133,7 +132,7 @@ pnpm dev:springboot
 放行标准：
 
 - Spring Boot 启动无异常退出
-- Flyway 迁移完成
+- 数据源与基础数据已就绪
 - 前端首页可打开
 - Swagger 页面可加载
 

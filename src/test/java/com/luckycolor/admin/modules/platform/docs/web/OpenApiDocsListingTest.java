@@ -12,7 +12,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration;
 import org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration;
-import org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
 import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration;
 import org.springframework.boot.actuate.autoconfigure.security.servlet.ManagementWebSecurityAutoConfiguration;
@@ -49,7 +48,6 @@ class OpenApiDocsListingTest {
         DataSourceAutoConfiguration.class,
         RedisAutoConfiguration.class,
         RedisRepositoriesAutoConfiguration.class,
-        FlywayAutoConfiguration.class,
         SecurityAutoConfiguration.class,
         ManagementWebSecurityAutoConfiguration.class
     })

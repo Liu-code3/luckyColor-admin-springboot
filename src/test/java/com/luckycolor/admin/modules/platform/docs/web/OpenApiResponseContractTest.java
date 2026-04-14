@@ -7,7 +7,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.luckycolor.admin.common.config.OpenApiConfig;
 import com.luckycolor.admin.infrastructure.security.config.SecurityJwtProperties;
 import com.luckycolor.admin.modules.iam.auth.config.LoginCaptchaProperties;
+import com.luckycolor.admin.modules.iam.auth.service.AuthAntiAbuseService;
 import com.luckycolor.admin.modules.iam.auth.service.AuthService;
+import com.luckycolor.admin.modules.iam.auth.service.LegacyLoginCaptchaService;
 import com.luckycolor.admin.modules.iam.auth.service.LoginCaptchaService;
 import com.luckycolor.admin.modules.iam.auth.web.AuthController;
 import com.luckycolor.admin.infrastructure.security.jwt.JwtTokenService;
@@ -23,7 +25,6 @@ import org.springframework.boot.actuate.autoconfigure.security.servlet.Managemen
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration;
 import org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration;
-import org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
 import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -59,6 +60,9 @@ class OpenApiResponseContractTest {
     private LoginCaptchaService loginCaptchaService;
 
     @MockBean
+    private LegacyLoginCaptchaService legacyLoginCaptchaService;
+
+    @MockBean
     private LoginCaptchaProperties loginCaptchaProperties;
 
     @MockBean
@@ -66,6 +70,9 @@ class OpenApiResponseContractTest {
 
     @MockBean
     private SecurityJwtProperties securityJwtProperties;
+
+    @MockBean
+    private AuthAntiAbuseService authAntiAbuseService;
 
     @Test
     void shouldExposeErrorExamplesAndBinaryMediaTypesInOpenApiDocs() throws Exception {
@@ -86,7 +93,6 @@ class OpenApiResponseContractTest {
         DataSourceAutoConfiguration.class,
         RedisAutoConfiguration.class,
         RedisRepositoriesAutoConfiguration.class,
-        FlywayAutoConfiguration.class,
         SecurityAutoConfiguration.class,
         ManagementWebSecurityAutoConfiguration.class
     })

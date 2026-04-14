@@ -9,7 +9,6 @@
     <img alt="MyBatis Plus" src="https://img.shields.io/badge/MyBatis--Plus-3.5.x-1F8ACB.svg" />
     <img alt="MySQL" src="https://img.shields.io/badge/MySQL-8.x-4479A1.svg" />
     <img alt="Redis" src="https://img.shields.io/badge/Redis-7.x-DC382D.svg" />
-    <img alt="Flyway" src="https://img.shields.io/badge/Flyway-Enabled-CC0200.svg" />
   </p>
 </div>
 
@@ -43,7 +42,7 @@
 
 - 技术定位：`Spring Boot 3 + Java 17` 的后台管理后端模板，适合多租户 SaaS、中后台和运营平台项目快速起步
 - 内置能力：认证登录、JWT、验证码、RBAC 权限、动态路由、租户隔离、字典配置、通知公告、平台通用模块
-- 工程能力：集成 `MyBatis-Plus`、`Flyway`、`Redis`、`Spring Security`、`SpringDoc`，保留迁移脚本、种子数据和回归测试
+- 工程能力：集成 `MyBatis-Plus`、`Redis`、`Spring Security`、`SpringDoc`，保留初始化 SQL、种子数据和回归测试
 - 配套生态：可与 `luckyColor-admin` 前端、`luckyColor-admin-serve` NestJS 后端进行对照联调和契约对齐
 
 ## 项目简介
@@ -56,7 +55,7 @@
 - 多租户上下文识别、租户隔离、租户管理、租户套餐与租户初始化能力
 - 用户、角色、菜单、部门、字典、系统配置、通知公告等后台常用模块
 - 文件服务、国际化资源、用户偏好、水印配置、代码生成器等平台能力
-- Flyway 迁移脚本、种子数据、OpenAPI 文档、回归测试与基础工程化脚本
+- 初始化 SQL、种子数据、OpenAPI 文档、回归测试与基础工程化脚本
 
 适合作为多租户管理后台、运营后台、企业内部管理系统或中后台脚手架的 Java 后端基础工程。
 
@@ -80,7 +79,7 @@
 | ORM / 持久层 | MyBatis-Plus 3.5.x |
 | 数据库 | MySQL 8.x |
 | 缓存 | Redis 7.x |
-| 数据迁移 | Flyway |
+| 数据初始化 | SQL 脚本 |
 | API 文档 | springdoc OpenAPI |
 | 构建工具 | Maven Wrapper |
 | 测试 | JUnit 5 / Spring Boot Test |
@@ -126,7 +125,6 @@ REDIS_HOST=127.0.0.1
 REDIS_PORT=6379
 REDIS_DATABASE=0
 JWT_SECRET=replace-with-a-strong-secret-for-luckycolor-admin
-FLYWAY_ENABLED=true
 TENANT_ENABLED=true
 TENANT_HEADER=x-tenant-id
 DEFAULT_TENANT_ID=
@@ -160,7 +158,7 @@ $env:SPRING_PROFILES_ACTIVE="prod"
 
 ## 默认初始化数据
 
-Flyway 默认开启，迁移脚本位于 `src/main/resources/db/migration`。本地初始化后，仓库会准备一套可直接联调的基础数据，包含：
+当前仓库使用 MyBatis-Plus 作为持久层。联调环境需要提前准备可用的数据库结构与基础数据，至少应包含：
 
 - 默认租户与租户套餐
 - 内置管理员、租户运营账号与基础角色
@@ -236,8 +234,7 @@ luckycolor-admin-springboot/
 │  │  │  └─ modules/                # iam、system、tenant、platform 等业务模块
 │  │  └─ resources/
 │  │     ├─ application.yml         # 默认运行配置
-│  │     ├─ application-prod.yml    # 生产环境配置
-│  │     └─ db/migration/           # Flyway 迁移脚本
+│  │     └─ application-prod.yml    # 生产环境配置
 │  └─ test/java/com/luckycolor/admin/ # 控制器、服务、安全、回归测试
 ├─ docs/                            # 项目文档与协作说明
 ├─ scripts/git/                     # Git 提交辅助脚本
