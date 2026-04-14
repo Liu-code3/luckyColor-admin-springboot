@@ -2,8 +2,6 @@ spring:
   config:
     activate:
       on-profile: prod
-  flyway:
-    enabled: ${FLYWAY_ENABLED:true}
 
 springdoc:
   swagger-ui:

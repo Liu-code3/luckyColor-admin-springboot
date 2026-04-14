@@ -45,7 +45,6 @@ public class TenancyProperties {
     ));
 
     private List<String> ignoreTables = new ArrayList<>(List.of(
-        "flyway_schema_history",
         "sys_tenant",
         "sys_tenant_package",
         "sys_tenant_audit_log",
