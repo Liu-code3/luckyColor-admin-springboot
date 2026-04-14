@@ -2,6 +2,7 @@ package com.luckycolor.admin.modules.platform.docs.web;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import org.junit.jupiter.api.Test;
@@ -21,6 +22,7 @@ class ApiDocsControllerTest {
     void shouldRenderDocsPage() throws Exception {
         mockMvc.perform(get("/docs"))
             .andExpect(status().isOk())
+            .andExpect(header().doesNotExist("X-Frame-Options"))
             .andExpect(content().contentTypeCompatibleWith("text/html"))
             .andExpect(content().string(org.hamcrest.Matchers.containsString("/docs/assets/swagger-ui.css")))
             .andExpect(content().string(org.hamcrest.Matchers.containsString("/v3/api-docs")))
