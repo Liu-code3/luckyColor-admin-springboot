@@ -62,14 +62,17 @@ public class TenantContextFilter extends OncePerRequestFilter {
 
     private Optional<Long> resolveTenantId(HttpServletRequest request) {
         String tenantIdFromHeader = normalizeTenantId(request.getHeader(tenancyProperties.getHeader()));
-        Optional<String> tenantIdFromToken = resolveTenantFromToken(request).map(this::normalizeTenantId);
+        Optional<Long> tenantIdFromToken = resolveTenantFromToken(request)
+            .map(this::normalizeTenantId)
+            .map(this::resolveRequiredTenantId);
 
         if (tenantIdFromToken.isPresent()) {
-            String authenticatedTenantId = tenantIdFromToken.get();
-            if (StringUtils.hasText(tenantIdFromHeader) && !authenticatedTenantId.equals(tenantIdFromHeader)) {
+            Long authenticatedTenantId = tenantIdFromToken.get();
+            if (StringUtils.hasText(tenantIdFromHeader)
+                && !authenticatedTenantId.equals(resolveRequiredTenantId(tenantIdFromHeader))) {
                 throw new IllegalArgumentException("Tenant id header does not match authenticated tenant");
             }
-            return resolveExternalTenantId(authenticatedTenantId);
+            return Optional.of(authenticatedTenantId);
         }
 
         String tenantId = tenantIdFromHeader;
@@ -91,6 +94,11 @@ public class TenantContextFilter extends OncePerRequestFilter {
             return resolvedTenantId;
         }
         throw new IllegalArgumentException("Invalid tenant id: " + tenantId);
+    }
+
+    private Long resolveRequiredTenantId(String tenantId) {
+        return resolveExternalTenantId(tenantId)
+            .orElseThrow(() -> new IllegalArgumentException("Invalid tenant id: " + tenantId));
     }
 
     private String normalizeTenantId(String tenantId) {

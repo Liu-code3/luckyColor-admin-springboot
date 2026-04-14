@@ -76,6 +76,17 @@ class TenantContextFilterTest {
     }
 
     @Test
+    void shouldAcceptMatchingExternalTenantIdFromHeaderAndBearerToken() throws Exception {
+        String token = jwtTokenService.createAccessToken(1L, "coderLiu", 3001L, java.util.List.of("ROLE_ADMIN"));
+
+        mockMvc.perform(get("/internal/tenant-context").with(user("tester"))
+                .header("x-tenant-id", "tenant_3001")
+                .header("Authorization", "Bearer " + token))
+            .andExpect(status().isOk())
+            .andExpect(content().string("3001"));
+    }
+
+    @Test
     void shouldRejectMismatchedTenantIdBetweenHeaderAndBearerToken() throws Exception {
         String token = jwtTokenService.createAccessToken(1L, "coderLiu", 3001L, java.util.List.of("ROLE_ADMIN"));
 
